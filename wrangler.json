@@ -10,5 +10,16 @@
 	"upload_source_maps": true,
 	"vars": {
 		"VALUE_FROM_CLOUDFLARE": "Hello from Cloudflare"
+	},
+	"env": {
+		"production": {
+			"vpc_services": [
+				{
+					"binding": "API_BINDING",
+					"service_id": "019ee405-bfe8-7903-bebd-83312960a38f",
+					"remote": true
+				}
+			]
+		}
 	}
 }
