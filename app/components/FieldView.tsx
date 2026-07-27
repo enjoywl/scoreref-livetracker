@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useLayoutEffect } from 'react';
 import { innerToPercent, CENTER_FIELD } from '~/data/coords';
 import type { LiveTracker, MatchState, TooltipData } from '~/engine/LiveTracker';
 
@@ -15,17 +15,14 @@ export default function FieldView({ tracker, state }: FieldViewProps) {
     tracker.setRefs(refs.current);
   }, [tracker]);
 
-  // Re-apply imperative SVG state after React re-renders
-  useEffect(() => {
+  // Re-apply imperative SVG state after React re-renders (before paint)
+  useLayoutEffect(() => {
     if (tracker._applyAnimations) tracker._applyAnimations();
   });
 
   const setRef = (name: string) => (el: SVGElement | null) => { if (el) refs.current[name] = el; };
 
-  // Tooltip data — positioned above the ball
-  const bp = state.ballPos || CENTER_FIELD;
-  const { px, py } = innerToPercent(bp.x, bp.y);
-
+  // Tooltip data
   let tooltip: TooltipData | null = null;
   if (state.activeTooltip) {
     const tt = state.activeTooltip;
@@ -45,6 +42,10 @@ export default function FieldView({ tracker, state }: FieldViewProps) {
     };
   }
 
+  // Position tooltip at stored location (for throw-ins etc) or above the ball
+  const tp = (tooltip && tooltip.x && tooltip.y) ? { x: tooltip.x, y: tooltip.y } : (state.ballPos || CENTER_FIELD);
+  const { px, py } = innerToPercent(tp.x, tp.y);
+
   return (
     <div className="field-scene">
       <div className="field-wrap">
@@ -63,6 +64,49 @@ export default function FieldView({ tracker, state }: FieldViewProps) {
               <stop offset="30%" stopColor="#ffd43b" stopOpacity="0.5" />
               <stop offset="100%" stopColor="#ffd43b" stopOpacity="0" />
             </radialGradient>
+            {/* Zone gradients: defensive edge (0.1) → sawtooth edge (0.4) — yellow for attack, red for DA */}
+            <linearGradient id="zgHome" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="#ffd43b" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="#ffd43b" stopOpacity="0.6" />
+            </linearGradient>
+            <linearGradient id="zgAway" x1="1" x2="0" y1="0" y2="0">
+              <stop offset="0%" stopColor="#ffd43b" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="#ffd43b" stopOpacity="0.6" />
+            </linearGradient>
+            <linearGradient id="zgDAH" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="#dc3c3c" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="#dc3c3c" stopOpacity="0.6" />
+            </linearGradient>
+            <linearGradient id="zgDAA" x1="1" x2="0" y1="0" y2="0">
+              <stop offset="0%" stopColor="#dc3c3c" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="#dc3c3c" stopOpacity="0.6" />
+            </linearGradient>
+            {/* Wave gradients: uniform 0.4 opacity — yellow for attack, red for DA */}
+            <linearGradient id="wgHome" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="#ffd43b" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#ffd43b" stopOpacity="0.4" />
+            </linearGradient>
+            <linearGradient id="wgAway" x1="1" x2="0" y1="0" y2="0">
+              <stop offset="0%" stopColor="#ffd43b" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#ffd43b" stopOpacity="0.4" />
+            </linearGradient>
+            <linearGradient id="wgDAH" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="#dc3c3c" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#dc3c3c" stopOpacity="0.4" />
+            </linearGradient>
+            <linearGradient id="wgDAA" x1="1" x2="0" y1="0" y2="0">
+              <stop offset="0%" stopColor="#dc3c3c" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#dc3c3c" stopOpacity="0.4" />
+            </linearGradient>
+            {/* Possession half-field overlay: goal line → center, gray gradient */}
+            <linearGradient id="posHalfH" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="#1a1a1a" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#1a1a1a" stopOpacity="0.6" />
+            </linearGradient>
+            <linearGradient id="posHalfA" x1="1" x2="0" y1="0" y2="0">
+              <stop offset="0%" stopColor="#1a1a1a" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#1a1a1a" stopOpacity="0.6" />
+            </linearGradient>
             <radialGradient id="fbBody" cx=".4" cy=".3" r=".8">
               <stop offset="0" stopColor="#fff" />
               <stop offset=".4" stopColor="#fff" />
@@ -73,6 +117,16 @@ export default function FieldView({ tracker, state }: FieldViewProps) {
               <stop offset=".8" stopColor="#fff" stopOpacity="0" />
               <stop offset=".99" stopOpacity=".3" />
               <stop offset="1" />
+            </radialGradient>
+            {/* Throw-in sector: gray gradient from center outward */}
+            <radialGradient ref={setRef('throwSectorGrad')} id="throwSectorGrad" cx="0" cy="0" r="100" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#444" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#444" stopOpacity="0.4" />
+            </radialGradient>
+            {/* Throw-in dot subtle glow */}
+            <radialGradient ref={setRef('throwDotGlowGrad')} id="throwDotGlow" cx="0" cy="0" r="10" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#ffd700" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="#ffd700" stopOpacity="0" />
             </radialGradient>
             <clipPath id="fbClip"><circle r="100" /></clipPath>
             <g id="fbPattern" strokeLinejoin="round" clipPath="url(#fbClip)">
@@ -91,9 +145,25 @@ export default function FieldView({ tracker, state }: FieldViewProps) {
           </defs>
 
           <g transform="matrix(0.26458333,0,0,0.26458333,32.609401,65.462639)">
-            {/* Possession tints */}
-            <rect ref={setRef('homeTint')} x="55" y="30" width="354" height="140" fill="#fff" opacity="0" />
-            <rect ref={setRef('awayTint')} x="409" y="30" width="356" height="140" fill="#ffd43b" opacity="0" />
+            {/* Possession tints — trapezoid matching field shape */}
+            <polygon ref={setRef('homeTint')} points="172.277,30.332 55,170.126 409.707,170.126 409.707,30.332" fill="#fff" opacity="0" />
+            <polygon ref={setRef('awayTint')} points="409.707,30.332 409.707,170.126 764.414,170.126 647.137,30.332" fill="#ffd43b" opacity="0" />
+
+            {/* Possession half-field overlay — gray gradient on own half */}
+            <polygon ref={setRef('posHalf')} points="" fill="none" stroke="none" opacity="0" />
+
+            {/* Attack zone — rendered from React state */}
+            <polygon
+              ref={setRef('attackZone')}
+              points={state.zoneAnim?.points}
+              fill={state.zoneAnim?.fill}
+              stroke={state.zoneAnim?.stroke}
+              strokeWidth={state.zoneAnim?.strokeWidth}
+              opacity={state.zoneAnim?.opacity ?? 0}
+            />
+
+            {/* Attack wave — animated sawtooth extension forward */}
+            <polygon ref={setRef('attackWave')} points="" fill="rgba(255,255,255,0)" opacity="0" />
 
             {/* Ball trail — white thin lines + joint dots */}
             <g ref={setRef('ballTrail')} opacity="0">
@@ -116,7 +186,7 @@ export default function FieldView({ tracker, state }: FieldViewProps) {
               </g>
               <g className="ball-bounce">
                 <circle ref={setRef('ballGlow')} cx="0" cy="0" r="24" fill="url(#ballGlowH)" opacity="0" />
-                <use href="#footballIcon" transform="scale(0.07)" />
+                <use href="#footballIcon" transform="scale(0.055)" />
               </g>
             </g>
 
@@ -146,14 +216,34 @@ export default function FieldView({ tracker, state }: FieldViewProps) {
               <text x="18" y="15" textAnchor="middle" fontSize="12" fill="#58a6ff" fontWeight="700">↔</text>
             </g>
 
+            {/* Throw-in: sector then dot on top */}
+            <polygon ref={setRef('throwSector')} points="" fill="url(#throwSectorGrad)" stroke="none" opacity="0" />
+            <circle ref={setRef('throwDot')} cx="0" cy="0" r="0" fill="#ffd700" opacity="0" />
+            <circle ref={setRef('throwDotGlow')} cx="0" cy="0" r="0" fill="url(#throwDotGlow)" opacity="0" />
+
             <line ref={setRef('shotLine')} x1="0" y1="0" x2="0" y2="0" stroke="#ff0" strokeWidth="2.5" opacity="0" strokeDasharray="8,5" />
             <path ref={setRef('missCurve')} d="" fill="none" stroke="#ff9800" strokeWidth="2" opacity="0" strokeDasharray="6,4" />
+
+            {/* Full-field flash */}
+            <rect ref={setRef('flashRect')} x="55" y="30" width="710" height="140" fill="#fff" opacity="0" />
+
+            {/* Generic event ring (attack / DA / penalty / free kick / corner / goal kick) */}
+            <circle ref={setRef('eventRing')} cx="0" cy="0" r="0" fill="none" stroke="#fff" strokeWidth="3" opacity="0" />
+
+            {/* Offside flag line */}
+            <line ref={setRef('offsideLine')} x1="0" y1="0" x2="0" y2="0" stroke="#ffeb3b" strokeWidth="3" strokeDasharray="10,5" opacity="0" />
+
+            {/* VAR badge */}
+            <g ref={setRef('varBox')} opacity="0">
+              <rect x="0" y="0" width="44" height="22" rx="5" fill="#1a1a2e" stroke="#58a6ff" strokeWidth="2" />
+              <text x="22" y="15" textAnchor="middle" fontSize="12" fill="#58a6ff" fontWeight="800">VAR</text>
+            </g>
           </g>
         </svg>
 
         {/* HTML Tooltip — above the ball */}
         {tooltip && (
-          <div className="html-tooltip" style={{ left: px + '%', top: (py - 2) + '%' }}>
+          <div className="html-tooltip" style={{ left: px + '%', top: (py - 1) + '%' }}>
             <div className="tt-inner">
               {tooltip.team && <div className="tt-team">{tooltip.team}</div>}
               <div className="tt-event-line">

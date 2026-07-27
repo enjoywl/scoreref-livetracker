@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   width="800px"
+   height="800px"
+   viewBox="0 -0.5 17 17"
+   version="1.1"
+   class="si-glyph si-glyph-corner-flag"
+   id="svg3"
+   sodipodi:docname="corner-flag-svgrepo-com.svg"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview3"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.091923881"
+     inkscape:cx="5183.6366"
+     inkscape:cy="48.953546"
+     inkscape:window-width="2560"
+     inkscape:window-height="1382"
+     inkscape:window-x="1728"
+     inkscape:window-y="30"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g2" />
+  <title
+     id="title1">699</title>
+  <defs
+     id="defs1" />
+  <g
+     stroke="none"
+     stroke-width="1"
+     fill="none"
+     fill-rule="evenodd"
+     id="g3">
+    <g
+       transform="translate(1.000000, 0.000000)"
+       fill="#434343"
+       id="g2">
+      <path
+         d="M0.48,15.845 C0.363,15.845 0.253,15.8 0.171,15.717 C0.088,15.634 0.042,15.525 0.042,15.407 C0.042,15.289 0.088,15.18 0.17,15.098 L5.058,10.21 L5.058,1.264 C5.058,1.023 5.242,0.827 5.468,0.827 C5.694,0.827 5.876,1.022 5.876,1.264 L5.876,10.12 L15.457,10.12 C15.698,10.12 15.895,10.292 15.895,10.503 C15.895,10.713 15.699,10.884 15.457,10.884 L10.642,10.884 L10.614,11.082 C10.302,13.254 8.424,14.892 6.243,14.892 C5.131,14.892 4.066,14.475 3.249,13.717 L3.091,13.501 L2.867,13.637 L0.79,15.715 C0.707,15.8 0.598,15.845 0.48,15.845 L0.48,15.845 Z M3.602,12.903 L3.815,13.062 C4.499,13.682 5.35,14.017 6.244,14.017 C7.922,14.017 9.382,12.815 9.718,11.161 L9.775,10.885 L5.623,10.885 L3.602,12.903 L3.602,12.903 Z"
+         class="si-glyph-fill"
+         id="path1" />
+      <path
+         sodipodi:type="star"
+         style="fill:#ec1402;fill-opacity:1;stroke:#405ec1;stroke-width:0.02125;stroke-linejoin:round;stroke-miterlimit:20;stroke-opacity:0.990476"
+         id="path3"
+         inkscape:flatsided="true"
+         sodipodi:sides="3"
+         sodipodi:cx="-70.813194"
+         sodipodi:cy="-104.06395"
+         sodipodi:r1="18.038631"
+         sodipodi:r2="9.0193157"
+         sodipodi:arg1="0.5382217"
+         sodipodi:arg2="1.5854193"
+         inkscape:rounded="0"
+         inkscape:randomized="0"
+         d="m -55.324835,-94.817168 -31.240486,-0.45686 16.015895,-26.826622 z"
+         inkscape:transform-center-x="-1.0836871"
+         inkscape:transform-center-y="0.018379492"
+         transform="matrix(0.00552469,0.25313435,-0.24364597,0.00573984,-17.630433,23.108083)" />
+    </g>
+  </g>
+</svg>

@@ -1,10 +1,10 @@
 // Field trapezoid constants (inner coords from pitch.svg transform)
-const FIELD_TOP = 30.332;
-const FIELD_BOTTOM = 170.126;
-const FIELD_LEFT_TOP = 172.277;
-const FIELD_RIGHT_TOP = 647.137;
-const FIELD_LEFT_BOTTOM = 55;
-const FIELD_RIGHT_BOTTOM = 764.414;
+export const FIELD_TOP = 30.332;
+export const FIELD_BOTTOM = 170.126;
+export const FIELD_LEFT_TOP = 172.277;
+export const FIELD_RIGHT_TOP = 647.137;
+export const FIELD_LEFT_BOTTOM = 55;
+export const FIELD_RIGHT_BOTTOM = 764.414;
 
 export interface PositionPoint {
   x: number;

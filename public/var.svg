@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48" height="48" width="64">
+  
+  <rect fill="#1e293b" rx="4" height="32" width="52" y="6" x="6"></rect>
+  
+  
+  <rect fill="#0f172a" rx="2" height="24" width="44" y="10" x="10"></rect>
+  
+  
+  <text fill="#22c55e" font-weight="bold" font-size="14" font-family="Arial, sans-serif" text-anchor="middle" y="27" x="32">VAR</text>
+  
+  
+  <rect fill="#475569" rx="1" height="4" width="12" y="38" x="26"></rect>
+  <rect fill="#64748b" rx="1.5" height="3" width="24" y="42" x="20"></rect>
+</svg>

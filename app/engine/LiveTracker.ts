@@ -1,4 +1,4 @@
-import { xyPos, CENTER_FIELD, GOAL_LEFT, GOAL_RIGHT, easeIn, type PositionPoint } from '../data/coords';
+import { xyPos, CENTER_FIELD, GOAL_LEFT, GOAL_RIGHT, easeIn, FIELD_TOP, FIELD_BOTTOM, FIELD_LEFT_TOP, FIELD_RIGHT_TOP, FIELD_LEFT_BOTTOM, FIELD_RIGHT_BOTTOM, type PositionPoint } from '../data/coords';
 import { vcInfo, POSS_CODES, type VCEntry } from '../data/vcMap';
 
 // =============================================================================
@@ -29,6 +29,16 @@ export interface TooltipData {
   team: string;
 }
 
+export interface ZoneAnimData {
+  points: string;
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  opacity: number;
+  bandPoints: string;
+  bandFill: string;
+}
+
 export interface MatchState {
   ballPos: PositionPoint | null;
   activeTooltip: TooltipData | null;
@@ -42,6 +52,7 @@ export interface MatchState {
   score: string;
   minute: string;
   statusText: string;
+  zoneAnim: ZoneAnimData | null;
 }
 
 export interface RawEvent {
@@ -55,6 +66,8 @@ export interface RawEvent {
   Player1?: string;
   Player2?: string;
   Champ?: string;
+  Team1Id?: string;
+  Team2Id?: string;
 }
 
 export interface EngineOptions {
@@ -77,6 +90,20 @@ interface TrackPoint {
   t: number;
   xy: string;
   pg: string;
+}
+
+// =============================================================================
+// 工具函数
+// =============================================================================
+
+/** 将坐标钳制在球场梯形范围内 */
+function clampToField(x: number, y: number): { x: number; y: number } {
+  y = Math.max(FIELD_TOP, Math.min(FIELD_BOTTOM, y));
+  const t = (y - FIELD_TOP) / (FIELD_BOTTOM - FIELD_TOP);
+  const leftX = FIELD_LEFT_TOP + t * (FIELD_LEFT_BOTTOM - FIELD_LEFT_TOP);
+  const rightX = FIELD_RIGHT_TOP + t * (FIELD_RIGHT_BOTTOM - FIELD_RIGHT_TOP);
+  x = Math.max(leftX + 2, Math.min(rightX - 2, x));
+  return { x, y };
 }
 
 // =============================================================================
@@ -116,9 +143,23 @@ export class LiveTracker {
   currentPG: string;
   _needsNotify: boolean;
 
+  // Attack zone — persists while currentVC is attack/DA, cleared on VC change
+  _zoneAnimData: ZoneAnimData | null;
+  _waveAnimRaf: number | null;
+
+  // Possession half overlay
+  _posHalfTeam: string | null;
+  _posHalfAnimRaf: number | null;
+
+  // Throw-in animation
+  _throwGlowRaf: number | null;
+  _throwSectorRaf: number | null;
+
   // ---- 比赛信息 ----
   team1: string;
   team2: string;
+  team1Logo: string;
+  team2Logo: string;
   champ: string;
   score: string;
   minute: string;
@@ -161,9 +202,17 @@ export class LiveTracker {
     this.currentVC = null;
     this.currentPG = '';
     this._needsNotify = false;
+    this._zoneAnimData = null;
+    this._waveAnimRaf = null;
+    this._posHalfTeam = null;
+    this._posHalfAnimRaf = null;
+    this._throwGlowRaf = null;
+    this._throwSectorRaf = null;
 
     this.team1 = '';
     this.team2 = '';
+    this.team1Logo = '';
+    this.team2Logo = '';
     this.champ = '';
     this.score = '0-0';
     this.minute = "0'";
@@ -239,6 +288,8 @@ export class LiveTracker {
       this.team1 = rawEvent.Player1;
       this.team2 = rawEvent.Player2 || '';
       this.champ = rawEvent.Champ || '';
+      if (rawEvent.Team1Id) this.team1Logo = `https://www.scoreref.com/v1/image/team/${rawEvent.Team1Id}.png`;
+      if (rawEvent.Team2Id) this.team2Logo = `https://www.scoreref.com/v1/image/team/${rawEvent.Team2Id}.png`;
     }
   }
 
@@ -288,6 +339,22 @@ export class LiveTracker {
     if (rawEvent.XY) {
       this._updateBallFromXY(rawEvent.XY!);
       this._startBallInterpolation();
+      // XY 到达后更新定位球动画位置（VC 可能先于 XY 到达）
+      if (this.currentVC) {
+        const vc = this.currentVC;
+        const newPos = xyPos(rawEvent.XY);
+        if (newPos) {
+          if (LiveTracker.THROW_CODES.has(vc.vc)) {
+            this._animThrow(newPos, vc);
+          } else if (vc.info.cat === 'CORNER') {
+            this._animCorner(newPos, vc);
+          } else if (vc.info.cat === 'FREE_KICK') {
+            this._animFKSector(newPos, vc);
+          } else if (vc.info.cat === 'PENALTY') {
+            this._animSetPieceSector(newPos, vc);
+          }
+        }
+      }
     } else if (!this.ballPos && this.events.length > 0) {
       this.ballPos = { x: CENTER_FIELD.x, y: CENTER_FIELD.y };
     }
@@ -299,8 +366,15 @@ export class LiveTracker {
 
   /** Live 模式：直接 fire，不走 pendingAnims 队列 */
   _fireLive(ev: ProcessedEvent): void {
-    // VC 发生变化 → 清空历史轨迹
-    if (!this.currentVC || this.currentVC.vc !== ev.vc) this.trailQ = [];
+    const isAttackOrDA = LiveTracker.DA_CODES.has(ev.vc) || LiveTracker.ATTACK_CODES.has(ev.vc);
+    const isPossession = POSS_CODES.has(ev.vc);
+    if (isAttackOrDA || isPossession) {
+      // 进攻/危险进攻/控球：仅在控球方切换时清空轨迹
+      if (this.currentVC && this.currentVC.team !== ev.team) this.trailQ = [];
+    } else {
+      // 静态事件（非运动战）：立即清空轨迹
+      this.trailQ = [];
+    }
     this.currentVC = ev;
     if (ev.pg) this.currentPG = ev.pg;
     this.activeTooltip = null;
@@ -312,6 +386,15 @@ export class LiveTracker {
     if (ev.vc === 1015) this.statusText = 'HALF TIME';
     if (ev.vc === 1017) this.statusText = 'FULL TIME';
     if (ev.vc === 1016) this.statusText = '2ND HALF';
+    // 进攻/危险进攻区域 — 显示并保持到 VC 改变
+    if (isAttackOrDA) {
+      const pos = ev.xy ? xyPos(ev.xy) : this._defaultPos(ev);
+      if (pos) this._animAttackZone(pos, ev.team, LiveTracker.DA_CODES.has(ev.vc));
+    } else {
+      this._zoneAnimData = null;
+    }
+    // 非定位球事件清除扇形动画
+    if (!LiveTracker.THROW_CODES.has(ev.vc) && ev.info.cat !== 'CORNER' && ev.info.cat !== 'FREE_KICK' && ev.info.cat !== 'PENALTY') this._clearThrowAnim();
     // Live 模式直接播动画，不排队
     this._playEventAnim(ev);
   }
@@ -401,6 +484,8 @@ export class LiveTracker {
     this.team1 = '';
     this.team2 = '';
     this.champ = '';
+    this.team1Logo = '';
+    this.team2Logo = '';
     this.score = '0-0';
     this.minute = "0'";
     this.statusText = 'LIVE';
@@ -409,6 +494,11 @@ export class LiveTracker {
     this.lastEvIdx = -1;
     this.lastPossTeam = null;
     this.trailQ = [];
+    this._zoneAnimData = null;
+    if (this._waveAnimRaf) { cancelAnimationFrame(this._waveAnimRaf); this._waveAnimRaf = null; }
+    if (this._posHalfAnimRaf) { cancelAnimationFrame(this._posHalfAnimRaf); this._posHalfAnimRaf = null; }
+    this._posHalfTeam = null;
+    this._clearThrowAnim();
     this.ballFrom = null;
     this.ballTo = null;
     this.ballStart = 0;
@@ -489,6 +579,34 @@ export class LiveTracker {
     }
     this._updatePossession();
     this._updateVCStatus();
+    // Show/hide attack zone based on current VC (for timeline clicks)
+    if (this.currentVC) {
+      const vc = this.currentVC.vc;
+      if (LiveTracker.DA_CODES.has(vc) || LiveTracker.ATTACK_CODES.has(vc)) {
+        const pos = this.currentVC.xy ? xyPos(this.currentVC.xy) : this._defaultPos(this.currentVC);
+        if (pos) this._animAttackZone(pos, this.currentVC.team, LiveTracker.DA_CODES.has(vc));
+      } else {
+        this._zoneAnimData = null;
+      }
+    } else {
+      this._zoneAnimData = null;
+    }
+    // Sector animations — clear or restart based on current VC
+    this._clearThrowAnim();
+    if (this.currentVC) {
+      const vcPos = this.currentVC.xy ? xyPos(this.currentVC.xy) : this._defaultPos(this.currentVC);
+      if (vcPos) {
+        if (LiveTracker.THROW_CODES.has(this.currentVC.vc)) {
+          this._animThrow(vcPos, this.currentVC);
+        } else if (this.currentVC.info.cat === 'CORNER') {
+          this._animCorner(vcPos, this.currentVC);
+        } else if (this.currentVC.info.cat === 'FREE_KICK') {
+          this._animFKSector(vcPos, this.currentVC);
+        } else if (this.currentVC.info.cat === 'PENALTY') {
+          this._animSetPieceSector(vcPos, this.currentVC);
+        }
+      }
+    }
     this._applyAnimations();
     this._notify();
   }
@@ -522,9 +640,13 @@ export class LiveTracker {
         this.lastEvIdx = i;
         this._fire(this.events[i]);
         const evTeam = this.events[i].team;
-        if (evTeam !== 'neutral' && POSS_CODES.has(this.events[i].vc)) {
-          if (this.lastPossTeam && evTeam !== this.lastPossTeam) this.trailQ = [];
-          this.lastPossTeam = evTeam;
+        const isMovement = LiveTracker.DA_CODES.has(this.events[i].vc) || LiveTracker.ATTACK_CODES.has(this.events[i].vc) || POSS_CODES.has(this.events[i].vc);
+        if (isMovement) {
+          if (evTeam !== 'neutral' && this.lastPossTeam && evTeam !== this.lastPossTeam) this.trailQ = [];
+          if (evTeam !== 'neutral') this.lastPossTeam = evTeam;
+        } else {
+          // 静态事件：立即清空轨迹
+          this.trailQ = [];
         }
       } else break;
     }
@@ -612,6 +734,16 @@ export class LiveTracker {
     if (ev.vc === 1015) this.statusText = 'HALF TIME';
     if (ev.vc === 1017) this.statusText = 'FULL TIME';
     if (ev.vc === 1016) this.statusText = '2ND HALF';
+    // 进攻/危险进攻区域 — 显示并保持到 VC 改变
+    const isAttackOrDA = LiveTracker.DA_CODES.has(ev.vc) || LiveTracker.ATTACK_CODES.has(ev.vc);
+    if (isAttackOrDA) {
+      const pos = ev.xy ? xyPos(ev.xy) : this._defaultPos(ev);
+      if (pos) this._animAttackZone(pos, ev.team, LiveTracker.DA_CODES.has(ev.vc));
+    } else {
+      this._zoneAnimData = null;
+    }
+    // 非定位球事件清除扇形动画
+    if (!LiveTracker.THROW_CODES.has(ev.vc) && ev.info.cat !== 'CORNER' && ev.info.cat !== 'FREE_KICK' && ev.info.cat !== 'PENALTY') this._clearThrowAnim();
     this.pendingAnims.push(ev);
     this._needsNotify = true;
   }
@@ -620,33 +752,107 @@ export class LiveTracker {
   // 事件动画分发
   // =============================================================================
 
+  /** 危险进攻 VC 集合 */
+  static DA_CODES = new Set([11000, 21000, 11300, 21300]);
+  /** 进攻 VC 集合 */
+  static ATTACK_CODES = new Set([11001, 21001, 11301, 21301]);
+  /** 球门球 VC 集合 */
+  static GK_CODES = new Set([11007, 21007]);
+  /** 界外球 VC 集合 */
+  static THROW_CODES = new Set([11024, 21024, 1237, 11237, 21237]);
+
+  /** 无 XY 时按事件类型/球队取默认坐标 */
+  _defaultPos(ev: ProcessedEvent): PositionPoint {
+    const isHome = ev.team === 'home';
+    const midY = FIELD_TOP + (FIELD_BOTTOM - FIELD_TOP) / 2;
+    const midXTop = (FIELD_LEFT_TOP + FIELD_RIGHT_TOP) / 2;
+    const midXBot = (FIELD_LEFT_BOTTOM + FIELD_RIGHT_BOTTOM) / 2;
+    const halfW = isHome ? (FIELD_RIGHT_TOP - midXTop) : (midXTop - FIELD_LEFT_TOP);
+    const { cat } = ev.info;
+    const vc = ev.vc;
+
+    if (cat === 'CORNER') {
+      return isHome
+        ? { x: FIELD_RIGHT_TOP - 15, y: FIELD_TOP + 8 }
+        : { x: FIELD_LEFT_TOP + 15, y: FIELD_TOP + 8 };
+    }
+    if (LiveTracker.THROW_CODES.has(vc)) {
+      return isHome
+        ? { x: FIELD_RIGHT_TOP - 3, y: FIELD_TOP + 5 }
+        : { x: FIELD_LEFT_TOP + 3, y: FIELD_TOP + 5 };
+    }
+    if (cat === 'PENALTY') {
+      return isHome ? { x: 650, y: midY } : { x: 170, y: midY };
+    }
+    if (LiveTracker.GK_CODES.has(vc)) {
+      return isHome ? { x: 680, y: midY } : { x: 140, y: midY };
+    }
+    if (cat === 'SHOT') {
+      return isHome ? { x: 580, y: midY } : { x: 240, y: midY };
+    }
+    if (LiveTracker.ATTACK_CODES.has(vc)) {
+      return isHome
+        ? { x: midXTop + halfW / 3, y: midY }
+        : { x: midXTop - halfW / 3, y: midY };
+    }
+    if (LiveTracker.DA_CODES.has(vc)) {
+      return isHome
+        ? { x: midXTop + halfW / 2, y: midY }
+        : { x: midXTop - halfW / 2, y: midY };
+    }
+    return CENTER_FIELD;
+  }
+
   _playEventAnim(ev: ProcessedEvent): void {
     const { cat } = ev.info;
-    const pos = ev.xy ? xyPos(ev.xy) : CENTER_FIELD;
+    const pos = ev.xy ? xyPos(ev.xy) : this._defaultPos(ev);
     if (!pos) return;
+    const team = ev.team;
+    const teamColor = team === 'home' ? '#fff' : '#ffd43b';
 
-    switch (cat) {
-      case 'GOAL': this._animGoal(pos, ev.team); this._showTooltip(pos, ev); break;
-      case 'SHOT': this._animShot(pos, ev); this._showTooltip(pos, ev); break;
-      case 'YELLOW_CARD': this._animCard(pos, '#ffeb3b'); this._showTooltip(pos, ev); break;
-      case 'RED_CARD': this._animCard(pos, '#f85149'); this._showTooltip(pos, ev); break;
-      case 'CORNER': this._animCorner(pos); this._showTooltip(pos, ev); break;
-      case 'FREE_KICK': this._animFoul(pos); this._showTooltip(pos, ev); break;
-      case 'PENALTY': this._animFoul(pos); this._showTooltip(pos, ev); break;
-      case 'INJURY': this._animInjury(pos); this._showTooltip(pos, ev); break;
-      case 'OFFSIDE': this._showTooltip(pos, ev); break;
-      case 'SUBSTITUTION': this._animSub(pos); this._showTooltip(pos, ev); break;
-      default:
-        if ([11024, 21024, 1237, 11237, 21237].includes(ev.vc)) this._animThrow(pos, ev);
-        this._showTooltip(pos, ev);
+    // ---- 进球 ----
+    if (cat === 'GOAL') {
+      this._animGoal(team);
+      this._animFlash();
+      this._showTooltip(CENTER_FIELD, ev);
+      return;
     }
+    // ---- 射门 ----
+    if (cat === 'SHOT') { this._animShot(pos, ev); this._showTooltip(CENTER_FIELD, ev); return; }
+    // ---- 黄牌 / 红牌 ----
+    if (cat === 'YELLOW_CARD') { this._animCard(pos, '#ffeb3b'); this._showTooltip(CENTER_FIELD, ev); return; }
+    if (cat === 'RED_CARD') { this._animCard(pos, '#f85149'); this._showTooltip(CENTER_FIELD, ev); return; }
+    // ---- 角球 ----
+    if (cat === 'CORNER') { this._animCorner(pos, ev); this._animPulse(pos, teamColor, 40, 35); this._showTooltip(CENTER_FIELD, ev); return; }
+    // ---- 任意球 ----
+    if (cat === 'FREE_KICK') { this._animFoul(pos); this._animFKSector(pos, ev); this._showTooltip(CENTER_FIELD, ev); return; }
+    // ---- 点球 ----
+    if (cat === 'PENALTY') { this._animPulse(pos, '#ffd700', 60, 60); this._animPulse(pos, '#ffd700', 60, 35, 200); this._animSetPieceSector(pos, ev); this._showTooltip(CENTER_FIELD, ev); return; }
+    // ---- 伤病 ----
+    if (cat === 'INJURY') { this._animInjury(pos); this._showTooltip(CENTER_FIELD, ev); return; }
+    // ---- 越位 ----
+    if (cat === 'OFFSIDE') { this._animOffside(pos); this._showTooltip(CENTER_FIELD, ev); return; }
+    // ---- 换人 ----
+    if (cat === 'SUBSTITUTION') { this._animSub(pos); this._showTooltip(CENTER_FIELD, ev); return; }
+    // ---- 危险进攻 / 进攻 (zone triggered in _fire / _fireLive) ----
+    if (LiveTracker.DA_CODES.has(ev.vc) || LiveTracker.ATTACK_CODES.has(ev.vc)) { this._showTooltip(pos, ev); return; }
+    // ---- 球门球 ----
+    if (LiveTracker.GK_CODES.has(ev.vc)) { this._animPulse(pos, teamColor, 40, 40); this._showTooltip(CENTER_FIELD, ev); return; }
+    // ---- VAR ----
+    if (cat === 'VAR') { this._animVar(pos); this._showTooltip(CENTER_FIELD, ev); return; }
+    // ---- 半场 / 全场 ----
+    if (ev.vc === 1015 || ev.vc === 1017) { this._animFlash(); this._showTooltip(CENTER_FIELD, ev); return; }
+    // ---- 界外球 ----
+    if (LiveTracker.THROW_CODES.has(ev.vc)) { this._animThrow(pos, ev); this._showTooltip(CENTER_FIELD, ev); return; }
+
+    this._showTooltip(pos, ev);
   }
 
   // =============================================================================
   // SVG 动画
   // =============================================================================
 
-  _animGoal(pos: PositionPoint, team: string): void {
+  _animGoal(team: string): void {
     const r = this.refs;
     if (!r.goalPulse1 || !r.goalPulse2) return;
     const gx = team === 'home' ? GOAL_RIGHT.x : GOAL_LEFT.x;
@@ -689,21 +895,112 @@ export class LiveTracker {
     setTimeout(() => shotLine.setAttribute('opacity', '0'), 2500);
   }
 
-  _animThrow(pos: PositionPoint, _ev?: ProcessedEvent): void {
+  /** Shared set-piece animation: yellow dot + glow + sector (if throwSector available). 30° spread (±15°). */
+  _startSectorLoop(pos: PositionPoint, baseAngle: number, baseLen: number, persistCheck: () => boolean): void {
     const r = this.refs;
-    if (!r.missCurve) return;
-    const missCurve = r.missCurve;
-    const cx = 409.707, cy = 100.229;
-    const dx = cx - pos.x, dy = cy - pos.y;
-    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-    const endX = pos.x + (dx / dist) * 50, endY = pos.y + (dy / dist) * 50;
-    const midX = (pos.x + endX) / 2, midY = Math.min(pos.y, endY) - 15;
-    missCurve.setAttribute('d', `M${pos.x},${pos.y} Q${midX},${midY} ${endX},${endY}`);
-    missCurve.setAttribute('stroke', '#4fc3f7');
-    missCurve.setAttribute('stroke-dasharray', '6,4');
-    missCurve.setAttribute('stroke-width', '2');
-    missCurve.setAttribute('opacity', '0.9');
-    setTimeout(() => missCurve.setAttribute('opacity', '0'), 2000);
+    if (this._throwSectorRaf) { cancelAnimationFrame(this._throwSectorRaf); this._throwSectorRaf = null; }
+    if (this._throwGlowRaf) { cancelAnimationFrame(this._throwGlowRaf); this._throwGlowRaf = null; }
+
+    // Yellow dot + glow rAF loop
+    if (r.throwDotGlow && r.throwDotGlowGrad) {
+      r.throwDotGlowGrad.setAttribute('cx', String(pos.x));
+      r.throwDotGlowGrad.setAttribute('cy', String(pos.y));
+      r.throwDotGlow.setAttribute('cx', String(pos.x));
+      r.throwDotGlow.setAttribute('cy', String(pos.y));
+
+      let glowFrame = 0;
+      const glowStep = () => {
+        glowFrame++;
+        r.throwDot!.setAttribute('cx', String(pos.x));
+        r.throwDot!.setAttribute('cy', String(pos.y));
+        r.throwDot!.setAttribute('r', '4');
+        r.throwDot!.setAttribute('opacity', '1');
+        const s = glowFrame % 40;
+        const pulse = 1 + Math.sin(s * Math.PI / 20) * 0.25;
+        r.throwDotGlow!.setAttribute('r', String(7 * pulse));
+        r.throwDotGlow!.setAttribute('opacity', String(0.3 + Math.sin(s * Math.PI / 20) * 0.2));
+        if (persistCheck()) {
+          this._throwGlowRaf = requestAnimationFrame(glowStep);
+        } else {
+          r.throwDot!.setAttribute('opacity', '0');
+          r.throwDotGlow!.setAttribute('opacity', '0');
+        }
+      };
+      this._throwGlowRaf = requestAnimationFrame(glowStep);
+    }
+
+    // Sector expansion loop
+    if (r.throwSector) {
+      const SPREAD = 0.2618;
+      const ARC_SEGS = 8;
+      const CYCLE_FRAMES = 100;
+
+      if (r.throwSectorGrad) {
+        r.throwSectorGrad.setAttribute('cx', String(pos.x));
+        r.throwSectorGrad.setAttribute('cy', String(pos.y));
+        r.throwSectorGrad.setAttribute('r', String(baseLen));
+      }
+
+      let frame = 0;
+      const step = () => {
+        frame++;
+        const phase = (frame % CYCLE_FRAMES) / CYCLE_FRAMES;
+        const expand = phase <= 0.5 ? phase * 2 : 2 - phase * 2;
+        const len = baseLen * (0.08 + expand * 0.92);
+
+        let pts = `${pos.x},${pos.y}`;
+        for (let i = 0; i <= ARC_SEGS; i++) {
+          const a = baseAngle - SPREAD + (2 * SPREAD * i) / ARC_SEGS;
+          const cx = pos.x + Math.cos(a) * len;
+          const cy = pos.y + Math.sin(a) * len;
+          const cc = clampToField(cx, cy);
+          pts += ` ${cc.x},${cc.y}`;
+        }
+        r.throwSector!.setAttribute('points', pts);
+        r.throwSector!.setAttribute('fill', 'url(#throwSectorGrad)');
+        r.throwSector!.setAttribute('opacity', '1');
+
+        if (persistCheck()) {
+          this._throwSectorRaf = requestAnimationFrame(step);
+        } else {
+          r.throwSector!.setAttribute('opacity', '0');
+        }
+      };
+      this._throwSectorRaf = requestAnimationFrame(step);
+    }
+  }
+
+  _animThrow(pos: PositionPoint, ev: ProcessedEvent): void {
+    const r = this.refs;
+    if (!r.throwDot) return;
+    this._clearThrowAnim();
+
+    const isHome = ev.team === 'home';
+    // Snap to sideline
+    const t = (pos.y - FIELD_TOP) / (FIELD_BOTTOM - FIELD_TOP);
+    const leftEdge = FIELD_LEFT_TOP + t * (FIELD_LEFT_BOTTOM - FIELD_LEFT_TOP);
+    const rightEdge = FIELD_RIGHT_TOP + t * (FIELD_RIGHT_BOTTOM - FIELD_RIGHT_TOP);
+    pos = { x: isHome ? rightEdge : leftEdge, y: pos.y };
+
+    const goalX = isHome ? GOAL_RIGHT.x : GOAL_LEFT.x;
+    const goalY = GOAL_RIGHT.y;
+    const baseAngle = Math.atan2(goalY - pos.y, goalX - pos.x);
+    const baseLen = Math.min(100, Math.sqrt((goalX - pos.x) ** 2 + (goalY - pos.y) ** 2) * 0.35);
+
+    this._startSectorLoop(pos, baseAngle, baseLen, () =>
+      !!(this.currentVC && LiveTracker.THROW_CODES.has(this.currentVC.vc))
+    );
+  }
+
+  _clearThrowAnim(): void {
+    if (this._throwGlowRaf) { cancelAnimationFrame(this._throwGlowRaf); this._throwGlowRaf = null; }
+    if (this._throwSectorRaf) { cancelAnimationFrame(this._throwSectorRaf); this._throwSectorRaf = null; }
+    const r = this.refs;
+    if (r.throwDot) r.throwDot.setAttribute('opacity', '0');
+    if (r.throwDotGlow) r.throwDotGlow.setAttribute('opacity', '0');
+    if (r.throwSector) r.throwSector.setAttribute('opacity', '0');
+    // Restore ball visibility
+    if (r.ballGroup) r.ballGroup.setAttribute('opacity', this.ballPos ? '1' : '0.7');
   }
 
   _animCard(pos: PositionPoint, color: string): void {
@@ -746,9 +1043,12 @@ export class LiveTracker {
     pulse();
   }
 
-  _animCorner(pos: PositionPoint): void {
+  _animCorner(pos: PositionPoint, ev: ProcessedEvent): void {
     const r = this.refs;
     if (!r.cornerAnim) return;
+    this._clearThrowAnim();
+
+    // Flag icon wave
     const cornerAnim = r.cornerAnim;
     cornerAnim.querySelector('polygon')!.setAttribute('points', `${pos.x},${pos.y} ${pos.x - 10},${pos.y - 6} ${pos.x - 2},${pos.y - 12}`);
     cornerAnim.querySelector('line')!.setAttribute('x1', String(pos.x));
@@ -766,6 +1066,15 @@ export class LiveTracker {
       else cornerAnim.setAttribute('opacity', '0');
     };
     wave();
+
+    // Shared dot + sector
+    const isHome = ev.team === 'home';
+    const goalX = isHome ? GOAL_RIGHT.x : GOAL_LEFT.x;
+    const goalY = GOAL_RIGHT.y;
+    const baseAngle = Math.atan2(goalY - pos.y, goalX - pos.x);
+    this._startSectorLoop(pos, baseAngle, 75, () =>
+      !!(this.currentVC && this.currentVC.info.cat === 'CORNER')
+    );
   }
 
   _animFoul(pos: PositionPoint): void {
@@ -791,6 +1100,32 @@ export class LiveTracker {
     anim();
   }
 
+  /** Free kick — dot + sector toward opponent goal, persists while VC active */
+  _animFKSector(pos: PositionPoint, ev: ProcessedEvent): void {
+    this._clearThrowAnim();
+    const isHome = ev.team === 'home';
+    const goalX = isHome ? GOAL_RIGHT.x : GOAL_LEFT.x;
+    const goalY = GOAL_RIGHT.y;
+    const baseAngle = Math.atan2(goalY - pos.y, goalX - pos.x);
+    const baseLen = Math.min(90, Math.sqrt((goalX - pos.x) ** 2 + (goalY - pos.y) ** 2) * 0.35);
+    this._startSectorLoop(pos, baseAngle, baseLen, () =>
+      !!(this.currentVC && this.currentVC.info.cat === 'FREE_KICK')
+    );
+  }
+
+  /** Penalty — dot + sector toward opponent goal, persists while VC active */
+  _animSetPieceSector(pos: PositionPoint, ev: ProcessedEvent): void {
+    this._clearThrowAnim();
+    const isHome = ev.team === 'home';
+    const goalX = isHome ? GOAL_RIGHT.x : GOAL_LEFT.x;
+    const goalY = GOAL_RIGHT.y;
+    const baseAngle = Math.atan2(goalY - pos.y, goalX - pos.x);
+    const baseLen = Math.min(80, Math.sqrt((goalX - pos.x) ** 2 + (goalY - pos.y) ** 2) * 0.3);
+    this._startSectorLoop(pos, baseAngle, baseLen, () =>
+      !!(this.currentVC && this.currentVC.info.cat === 'PENALTY')
+    );
+  }
+
   _animSub(pos: PositionPoint): void {
     const r = this.refs;
     if (!r.subAnim) return;
@@ -806,6 +1141,207 @@ export class LiveTracker {
       frame++;
       if (frame < 40) requestAnimationFrame(anim);
       else subAnim.setAttribute('opacity', '0');
+    };
+    anim();
+  }
+
+  /** 通用脉冲环：在指定位置扩散圆圈，适用于进攻/角球/点球/球门球等 */
+  _animPulse(pos: PositionPoint, color: string, duration: number, maxR: number, delay = 0): void {
+    const r = this.refs;
+    if (!r.eventRing) return;
+    const ring = r.eventRing;
+    const start = () => {
+      ring.setAttribute('cx', String(pos.x));
+      ring.setAttribute('cy', String(pos.y));
+      ring.setAttribute('stroke', color);
+      ring.setAttribute('r', '4');
+      ring.setAttribute('opacity', '1');
+      let frame = 0;
+      const anim = () => {
+        frame++;
+        ring.setAttribute('r', String(4 + (maxR - 4) * (frame / duration)));
+        ring.setAttribute('opacity', String(Math.max(0, 1 - frame / duration)));
+        if (frame < duration) requestAnimationFrame(anim);
+        else ring.setAttribute('opacity', '0');
+      };
+      anim();
+    };
+    if (delay > 0) setTimeout(start, delay); else start();
+  }
+
+  /**
+   * 进攻/危险进攻区域：覆盖球场的锯齿形色块 + 脉冲延伸带
+   * 独立于球员位置 — 匹配球场梯形透视，锯齿边与球场边线平行
+   */
+  _animAttackZone(_pos: PositionPoint, team: string, dangerous = false): void {
+    const fieldH = FIELD_BOTTOM - FIELD_TOP;
+    const toothCount = 4;
+    const segH = fieldH / toothCount;
+    const toRight = team === 'home';
+    const dir = toRight ? 1 : -1;
+    const percent = toRight
+      ? (dangerous ? 0.75 : 0.65)
+      : (dangerous ? 0.25 : 0.35);
+    const toothH = (dangerous ? 45 : 30) * dir;
+
+    const leftX = (y: number) => FIELD_LEFT_TOP + (y - FIELD_TOP) * (FIELD_LEFT_BOTTOM - FIELD_LEFT_TOP) / fieldH;
+    const rightX = (y: number) => FIELD_RIGHT_TOP + (y - FIELD_TOP) * (FIELD_RIGHT_BOTTOM - FIELD_RIGHT_TOP) / fieldH;
+    const baseAtY = (y: number) => leftX(y) + (rightX(y) - leftX(y)) * percent;
+
+    const toothPts: { x: number; y: number }[] = [];
+    toothPts.push({ x: baseAtY(FIELD_TOP), y: FIELD_TOP });
+    for (let i = 0; i < toothCount; i++) {
+      const y0 = FIELD_TOP + i * segH;
+      const midY = y0 + segH / 2;
+      const y1 = y0 + segH;
+      toothPts.push({ x: baseAtY(midY) + toothH, y: midY });
+      toothPts.push({ x: baseAtY(y1), y: y1 });
+    }
+
+    // Polygon from defensive-side field edge to sawtooth line
+    let zonePts: string;
+    if (toRight) {
+      // Home attacks right: fill left edge → sawtooth (pushing from own half)
+      zonePts = `${leftX(FIELD_TOP)},${FIELD_TOP} ${leftX(FIELD_BOTTOM)},${FIELD_BOTTOM}`;
+      for (let i = toothPts.length - 1; i >= 0; i--) {
+        zonePts += ` ${toothPts[i].x},${toothPts[i].y}`;
+      }
+    } else {
+      // Away attacks left: fill right edge → sawtooth (pushing from own half)
+      zonePts = `${rightX(FIELD_TOP)},${FIELD_TOP} ${rightX(FIELD_BOTTOM)},${FIELD_BOTTOM}`;
+      for (let i = toothPts.length - 1; i >= 0; i--) {
+        zonePts += ` ${toothPts[i].x},${toothPts[i].y}`;
+      }
+    }
+
+    // Gradient IDs: defensive edge (0.1) → sawtooth (0.4)
+    const zoneGradId = dangerous
+      ? (team === 'home' ? 'url(#zgDAH)' : 'url(#zgDAA)')
+      : (team === 'home' ? 'url(#zgHome)' : 'url(#zgAway)');
+    const waveGradId = dangerous
+      ? (team === 'home' ? 'url(#wgDAH)' : 'url(#wgDAA)')
+      : (team === 'home' ? 'url(#wgHome)' : 'url(#wgAway)');
+
+    // Always store in React state for JSX rendering
+    this._zoneAnimData = {
+      points: zonePts,
+      fill: zoneGradId,
+      stroke: 'none',
+      strokeWidth: 0,
+      opacity: 1,
+      bandPoints: '',
+      bandFill: waveGradId,
+    };
+
+    this._needsNotify = true;
+
+    // Animated attacking wave — sawtooth edge pulses forward from the base zone
+    const r = this.refs;
+    if (r.attackWave) {
+      if (this._waveAnimRaf) {
+        cancelAnimationFrame(this._waveAnimRaf);
+        this._waveAnimRaf = null;
+      }
+
+      const maxExtend = dangerous ? 0.04 : 0.06;
+      const cycleFrames = 40;
+      let frame = 0;
+
+      const waveStep = () => {
+        frame++;
+        // Sine-based pulse: extend forward then retract, looping while zone is visible
+        const t = frame / cycleFrames;
+        const pulse = Math.sin(t * Math.PI); // 0→1→0 per cycle
+        const extPercent = percent + dir * maxExtend * pulse;
+        const extBaseAtY = (y: number) => leftX(y) + (rightX(y) - leftX(y)) * extPercent;
+
+        const extToothPts: { x: number; y: number }[] = [];
+        extToothPts.push({ x: extBaseAtY(FIELD_TOP), y: FIELD_TOP });
+        for (let i = 0; i < toothCount; i++) {
+          const y0 = FIELD_TOP + i * segH;
+          const midY = y0 + segH / 2;
+          const y1 = y0 + segH;
+          extToothPts.push({ x: extBaseAtY(midY) + toothH, y: midY });
+          extToothPts.push({ x: extBaseAtY(y1), y: y1 });
+        }
+
+        // Wave polygon: extended sawtooth (top→bottom) + base sawtooth (bottom→top)
+        let wavePts = '';
+        for (const p of extToothPts) wavePts += `${p.x},${p.y} `;
+        for (let i = toothPts.length - 1; i >= 0; i--) wavePts += `${toothPts[i].x},${toothPts[i].y} `;
+
+        r.attackWave!.setAttribute('points', wavePts);
+        r.attackWave!.setAttribute('fill', waveGradId);
+        r.attackWave!.setAttribute('opacity', String(pulse * 0.8));
+
+        // Loop while zone is still visible
+        if (this._zoneAnimData) {
+          this._waveAnimRaf = requestAnimationFrame(waveStep);
+        } else {
+          this._waveAnimRaf = null;
+          r.attackWave!.setAttribute('opacity', '0');
+        }
+      };
+      this._waveAnimRaf = requestAnimationFrame(waveStep);
+    }
+  }
+
+  /** 越位线：在事件位置画一条横线 */
+  _animOffside(pos: PositionPoint): void {
+    const r = this.refs;
+    if (!r.offsideLine) return;
+    const line = r.offsideLine;
+    line.setAttribute('x1', String(pos.x - 40));
+    line.setAttribute('y1', String(pos.y));
+    line.setAttribute('x2', String(pos.x + 40));
+    line.setAttribute('y2', String(pos.y));
+    line.setAttribute('opacity', '1');
+    let frame = 0;
+    const anim = () => {
+      line.setAttribute('opacity', String(Math.max(0, 1 - frame * 0.025)));
+      frame++;
+      if (frame < 50) requestAnimationFrame(anim);
+      else line.setAttribute('opacity', '0');
+    };
+    anim();
+  }
+
+  /** VAR 标牌：显示 VAR 方框并脉冲 */
+  _animVar(pos: PositionPoint): void {
+    const r = this.refs;
+    if (!r.varBox) return;
+    const box = r.varBox;
+    const rect = box.querySelector('rect')!;
+    const text = box.querySelector('text')!;
+    rect.setAttribute('x', String(pos.x - 22));
+    rect.setAttribute('y', String(pos.y - 28));
+    text.setAttribute('x', String(pos.x));
+    text.setAttribute('y', String(pos.y - 14));
+    box.setAttribute('opacity', '1');
+    let frame = 0;
+    const anim = () => {
+      const s = 1 + Math.sin(frame * 0.2) * 0.1;
+      box.setAttribute('transform', `translate(${pos.x},${pos.y - 18}) scale(${s}) translate(${-pos.x},${-(pos.y - 18)})`);
+      box.setAttribute('opacity', String(Math.max(0, 1 - frame * 0.012)));
+      frame++;
+      if (frame < 80) requestAnimationFrame(anim);
+      else { box.setAttribute('opacity', '0'); box.setAttribute('transform', ''); }
+    };
+    anim();
+  }
+
+  /** 全场白色闪光 */
+  _animFlash(): void {
+    const r = this.refs;
+    if (!r.flashRect) return;
+    const flash = r.flashRect;
+    flash.setAttribute('opacity', '0.35');
+    let frame = 0;
+    const anim = () => {
+      frame++;
+      flash.setAttribute('opacity', String(Math.max(0, 0.35 - frame * 0.01)));
+      if (frame < 35) requestAnimationFrame(anim);
+      else flash.setAttribute('opacity', '0');
     };
     anim();
   }
@@ -841,12 +1377,17 @@ export class LiveTracker {
     if (this.ballPos || this.events.length > 0) {
       const bp = this.ballPos || CENTER_FIELD;
       const isAway = this.possession === 'away';
+      const vc = this.currentVC;
+      // Hide ball + trail for everything except movement (attack / DA / possession)
+      const isMovement = vc && (LiveTracker.DA_CODES.has(vc.vc) || LiveTracker.ATTACK_CODES.has(vc.vc) || POSS_CODES.has(vc.vc));
+      const hideBall = vc && !isMovement;
+      if (hideBall && r.ballTrail) r.ballTrail.setAttribute('opacity', '0');
       if (r.ballGlow) r.ballGlow.setAttribute('fill', isAway ? 'url(#ballGlowA)' : 'url(#ballGlowH)');
       r.ballGroup.setAttribute('transform', `translate(${bp.x},${bp.y})`);
-      r.ballGroup.setAttribute('opacity', this.ballPos ? '1' : '0.7');
+      r.ballGroup.setAttribute('opacity', hideBall ? '0' : (this.ballPos ? '1' : '0.7'));
 
       const pts = this.trailQ;
-      if (this.ballPos && pts.length >= 2) {
+      if (!hideBall && this.ballPos && pts.length >= 2) {
         if (r.ballTrail) r.ballTrail.setAttribute('opacity', '1');
         const LINE_OPACITIES = [1.0, 0.9, 0.8];
         for (let i = 0; i < 3; i++) {
@@ -900,6 +1441,84 @@ export class LiveTracker {
 
     if (r.homeTint) r.homeTint.setAttribute('opacity', this.possession === 'home' ? '0.07' : '0');
     if (r.awayTint) r.awayTint.setAttribute('opacity', this.possession === 'away' ? '0.07' : '0');
+
+    // Possession half-field overlay — pure possession events only (exclude attack/DA)
+    if (r.posHalf) {
+      const vc = this.currentVC;
+      const isPurePoss = vc && POSS_CODES.has(vc.vc)
+        && !LiveTracker.DA_CODES.has(vc.vc) && !LiveTracker.ATTACK_CODES.has(vc.vc);
+      const possTeam = isPurePoss ? vc!.team : null;
+
+      if (possTeam !== this._posHalfTeam) {
+        // Cancel previous animation
+        if (this._posHalfAnimRaf) { cancelAnimationFrame(this._posHalfAnimRaf); this._posHalfAnimRaf = null; }
+        this._posHalfTeam = possTeam;
+
+        if (possTeam === 'home') {
+          const goalEdgeTop = FIELD_LEFT_TOP;
+          const goalEdgeBot = FIELD_LEFT_BOTTOM;
+          const targetX = 408.7;
+          const startX = goalEdgeTop + 25;
+          const startXBot = goalEdgeBot + 25;
+          let frame = 0;
+          const totalFrames = 14;
+          r.posHalf.setAttribute('fill', 'url(#posHalfH)');
+          r.posHalf.setAttribute('opacity', '1');
+          const expand = () => {
+            frame++;
+            const t = Math.min(1, frame / totalFrames);
+            const eased = 1 - Math.pow(1 - t, 3); // ease-out
+            const cx = startX + (targetX - startX) * eased;
+            const cxBot = startXBot + (targetX - startXBot) * eased;
+            r.posHalf!.setAttribute('points', `${goalEdgeTop},${FIELD_TOP} ${cx},${FIELD_TOP} ${cxBot},${FIELD_BOTTOM} ${goalEdgeBot},${FIELD_BOTTOM}`);
+            if (frame < totalFrames) {
+              this._posHalfAnimRaf = requestAnimationFrame(expand);
+            } else {
+              this._posHalfAnimRaf = null;
+              r.posHalf!.setAttribute('points', `${goalEdgeTop},${FIELD_TOP} ${targetX},${FIELD_TOP} ${targetX},${FIELD_BOTTOM} ${goalEdgeBot},${FIELD_BOTTOM}`);
+            }
+          };
+          this._posHalfAnimRaf = requestAnimationFrame(expand);
+        } else if (possTeam === 'away') {
+          const goalEdgeTop = FIELD_RIGHT_TOP;
+          const goalEdgeBot = FIELD_RIGHT_BOTTOM;
+          const targetX = 410.7;
+          const startX = goalEdgeTop - 25;
+          const startXBot = goalEdgeBot - 25;
+          let frame = 0;
+          const totalFrames = 14;
+          r.posHalf.setAttribute('fill', 'url(#posHalfA)');
+          r.posHalf.setAttribute('opacity', '1');
+          const expand = () => {
+            frame++;
+            const t = Math.min(1, frame / totalFrames);
+            const eased = 1 - Math.pow(1 - t, 3); // ease-out
+            const cx = startX - (startX - targetX) * eased;
+            const cxBot = startXBot - (startXBot - targetX) * eased;
+            r.posHalf!.setAttribute('points', `${cx},${FIELD_TOP} ${goalEdgeTop},${FIELD_TOP} ${goalEdgeBot},${FIELD_BOTTOM} ${cxBot},${FIELD_BOTTOM}`);
+            if (frame < totalFrames) {
+              this._posHalfAnimRaf = requestAnimationFrame(expand);
+            } else {
+              this._posHalfAnimRaf = null;
+              r.posHalf!.setAttribute('points', `${targetX},${FIELD_TOP} ${goalEdgeTop},${FIELD_TOP} ${goalEdgeBot},${FIELD_BOTTOM} ${targetX},${FIELD_BOTTOM}`);
+            }
+          };
+          this._posHalfAnimRaf = requestAnimationFrame(expand);
+        } else {
+          r.posHalf.setAttribute('opacity', '0');
+        }
+      }
+    }
+
+    // Keep tooltip following the ball (except throw-in/corner which use CENTER_FIELD)
+    if (this.activeTooltip && this.ballPos) {
+      const tt = this.activeTooltip;
+      if (tt.x !== CENTER_FIELD.x || tt.y !== CENTER_FIELD.y) {
+        tt.x = this.ballPos.x;
+        tt.y = this.ballPos.y;
+      }
+    }
+
   }
 
   _notify(): void {
@@ -917,6 +1536,7 @@ export class LiveTracker {
         score: this.score,
         minute: this.minute,
         statusText: this.statusText,
+        zoneAnim: this._zoneAnimData,
       });
     }
   }
