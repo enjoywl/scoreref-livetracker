@@ -465,6 +465,9 @@ button { font-family: inherit; }
 .bs-shell {
   position: relative;
   width: min(80cqi, 620px);
+  /* 横向滑动交给 JS 切页，纵向仍保持浏览器默认行为 */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 /* 半透明玻璃卡片: 叠加在虚化的球场上, 仍靠自身 blur 保证文字对比度 */

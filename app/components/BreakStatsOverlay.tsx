@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type TouchEvent } from 'react';
 import type { LiveTracker, MatchState } from '~/engine/LiveTracker';
 import { buildBreakSlides, computeBreakStats, type BreakRow } from '~/lib/breakStats';
 import EntityImage from './EntityImage';
@@ -41,6 +41,7 @@ export default function BreakStatsOverlay({ tracker, state, data }: BreakStatsOv
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [cycle, setCycle] = useState(0);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const stats = useMemo(
     () => computeBreakStats(tracker.events, data.cutoffT, data.feed),
@@ -66,6 +67,31 @@ export default function BreakStatsOverlay({ tracker, state, data }: BreakStatsOv
     setCycle((n) => n + 1);
   };
 
+  // 移动端没有左右箭头：按住暂停轮播，横向滑动超过阈值切换一页。
+  // 竖向滑动（|dy| 较大）不处理，避免误触。
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    setPaused(true);
+    const touch = e.touches[0];
+    touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  };
+
+  const handleTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
+    setPaused(false);
+    const start = touchStart.current;
+    touchStart.current = null;
+    const touch = e.changedTouches[0];
+    if (!start || !touch) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    go(dx < 0 ? index + 1 : index - 1);
+  };
+
+  const handleTouchCancel = () => {
+    touchStart.current = null;
+    setPaused(false);
+  };
+
   const homeName = tracker.team1 || 'Home';
   const awayName = tracker.team2 || 'Away';
   const homeColor = tracker.team1Color || 'var(--home)';
@@ -88,8 +114,9 @@ export default function BreakStatsOverlay({ tracker, state, data }: BreakStatsOv
         style={cardStyle}
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
-        onTouchStart={() => setPaused(true)}
-        onTouchEnd={() => setPaused(false)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
       >
         <div className={'break-stats-card' + (slide?.key === 'score' ? ' is-score-slide' : '')}>
           <header className="bs-head">
