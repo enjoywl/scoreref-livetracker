@@ -2,11 +2,9 @@
 # 推送分支/tag：构建静态 SPA 镜像并推送到内网 Registry
 # Pull Request：只构建镜像做校验，不推
 #
-# 镜像里前端需要 Wasabi 配置（Vite 构建期内联），在 Gitea 仓库配置：
-#   secrets: VITE_WASABI_ACCESS_KEY / VITE_WASABI_SECRET_KEY
-#   vars:    VITE_WASABI_ENDPOINT / VITE_WASABI_BUCKET / VITE_API_BASE_URL
-# 推送构建会校验这四项以及产物里的签名代码，缺失时直接失败，
-# 避免静默发布没有队徽的镜像。PR 构建不校验（fork 拿不到 secret）。
+# Wasabi 配置默认内置在 app/lib/wasabi-defaults.ts（小型项目做法），
+# CI 不需要配置 secret/variable；仍可用 build-arg 覆盖。
+# 构建后会检查产物里确实有 SigV4 签名代码，避免发布没有队徽的镜像。
 name: Live Tracker CI/CD
 
 on:
@@ -75,26 +73,9 @@ jobs:
             --username "${{ vars.DOCKER_USERNAME }}" \
             --password-stdin
 
-      # 4. 校验 Wasabi 配置。缺 secret/var 时 Vite 会把空值内联并 tree-shake
-      #    掉整个签名模块，镜像能正常启动但所有队徽变成首字母占位。
-      - name: Verify Wasabi build config
-        if: github.event_name != 'pull_request'
-        env:
-          VITE_WASABI_ACCESS_KEY: ${{ secrets.VITE_WASABI_ACCESS_KEY }}
-          VITE_WASABI_SECRET_KEY: ${{ secrets.VITE_WASABI_SECRET_KEY }}
-          VITE_WASABI_ENDPOINT: ${{ vars.VITE_WASABI_ENDPOINT }}
-          VITE_WASABI_BUCKET: ${{ vars.VITE_WASABI_BUCKET }}
-        # 用 POSIX 写法：runner 的 /bin/sh 不支持 bash 的 ${!name} 间接展开。
-        run: |
-          missing=0
-          [ -n "${VITE_WASABI_ACCESS_KEY}" ] || { echo "[ERROR] VITE_WASABI_ACCESS_KEY 未配置（repository secret）"; missing=1; }
-          [ -n "${VITE_WASABI_SECRET_KEY}" ] || { echo "[ERROR] VITE_WASABI_SECRET_KEY 未配置（repository secret）"; missing=1; }
-          [ -n "${VITE_WASABI_ENDPOINT}" ]   || { echo "[ERROR] VITE_WASABI_ENDPOINT 未配置（repository variable）"; missing=1; }
-          [ -n "${VITE_WASABI_BUCKET}" ]     || { echo "[ERROR] VITE_WASABI_BUCKET 未配置（repository variable）"; missing=1; }
-          exit "${missing}"
-
-      # 5. 构建镜像。node 安装/typecheck/静态构建都在 Dockerfile 的 build
-      #    阶段完成，CI 容器本身不需要 Node。
+      # 4. 构建镜像。node 安装/typecheck/静态构建都在 Dockerfile 的 build
+      #    阶段完成，CI 容器本身不需要 Node。build-arg 仅用于可选覆盖，
+      #    未配置时会回退到 app/lib/wasabi-defaults.ts。
       #    --build-arg 不带值时会从当前环境读取，避免把凭据写进命令行。
       - name: Build Docker image
         env:
@@ -122,7 +103,7 @@ jobs:
 
           echo "IMAGE_VERSION=${VERSION}" >> $GITHUB_ENV
 
-      # 6. 确认产物里真的有 SigV4 代码，防止 build-arg 在后续改动中丢失。
+      # 5. 确认产物里真的有 SigV4 代码，防止默认配置在后续改动中丢失。
       - name: Verify Wasabi bundle
         if: github.event_name != 'pull_request'
         run: |
@@ -131,7 +112,7 @@ jobs:
             -c 'grep -rl "X-Amz-Credential" /usr/share/nginx/html/assets >/dev/null' \
             || { echo "[ERROR] 构建产物缺少 Wasabi 签名代码，检查 build-arg 是否传入"; exit 1; }
 
-      # 7. 推送镜像
+      # 6. 推送镜像
       - name: Push Docker image
         if: github.event_name != 'pull_request'
         run: |
@@ -150,7 +131,7 @@ jobs:
           echo "Image pushed: ${IMAGE}:${VERSION}"
           echo "=========================================="
 
-      # 8. 构建信息
+      # 7. 构建信息
       - name: Save build info
         if: github.event_name != 'pull_request'
         run: |
@@ -169,7 +150,7 @@ jobs:
           EOF
           cat build-info.txt
 
-      # 9. 清理
+      # 8. 清理
       - name: Cleanup
         if: always()
         run: |

@@ -7,18 +7,22 @@
  * Config resolution order (first hit wins):
  *   1. Full env config: VITE_WASABI_ENDPOINT + VITE_WASABI_BUCKET
  *      (+ optional VITE_WASABI_REGION, derived from endpoint otherwise)
- *   2. Discovery: GET {VITE_API_BASE_URL}/v2/api/config/wasabi/region
+ *   2. Built-in defaults from ./wasabi-defaults (small-project setup,
+ *      so CI needs no repository secrets/variables)
+ *   3. Discovery: GET {VITE_API_BASE_URL}/v2/api/config/wasabi/region
  *
- * Always required: VITE_WASABI_ACCESS_KEY / VITE_WASABI_SECRET_KEY.
+ * Always required: an access key / secret key (env or built-in defaults).
  * Call initWasabi() once on the client before rendering images.
  */
 import { presignGetUrl } from './sigv4'
+import { WASABI_DEFAULTS } from './wasabi-defaults'
 
 const API_BASE: string = import.meta.env.VITE_API_BASE_URL ?? ''
-const ACCESS_KEY: string = import.meta.env.VITE_WASABI_ACCESS_KEY ?? ''
-const SECRET_KEY: string = import.meta.env.VITE_WASABI_SECRET_KEY ?? ''
-const ENV_BUCKET: string = import.meta.env.VITE_WASABI_BUCKET ?? ''
-const ENV_ENDPOINT: string = import.meta.env.VITE_WASABI_ENDPOINT ?? ''
+// `||` (not `??`): CI passes empty build-args, which must fall back to defaults.
+const ACCESS_KEY: string = import.meta.env.VITE_WASABI_ACCESS_KEY || WASABI_DEFAULTS.accessKey
+const SECRET_KEY: string = import.meta.env.VITE_WASABI_SECRET_KEY || WASABI_DEFAULTS.secretKey
+const ENV_BUCKET: string = import.meta.env.VITE_WASABI_BUCKET || WASABI_DEFAULTS.bucket
+const ENV_ENDPOINT: string = import.meta.env.VITE_WASABI_ENDPOINT || WASABI_DEFAULTS.endpoint
 const ENV_REGION: string = import.meta.env.VITE_WASABI_REGION ?? ''
 
 /** SigV4 presigned URLs live at most 7 days; refresh one day early. */

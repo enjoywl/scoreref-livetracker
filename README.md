@@ -167,17 +167,22 @@ docker compose up -d
 版本号与后端仓库一致：`<package.json version>-<时间戳>-<分支>-<提交>`，tag 构建直接使用
 tag 名，main/master/tag 额外更新 `latest`。
 
-构建阶段需要 Wasabi 配置时，在 Gitea 仓库里配置：
+Wasabi 配置直接内置在 `app/lib/wasabi-defaults.ts`（小型项目做法，参考 API 的
+`application-prod.yml`），**CI 不需要配置任何 secret/variable**。构建后 CI 会检查产物里
+是否包含 SigV4 签名代码，缺失则失败。
 
-| 名称 | 类型 | 说明 |
-| --- | --- | --- |
-| `VITE_WASABI_ACCESS_KEY` | secret | Wasabi access key |
-| `VITE_WASABI_SECRET_KEY` | secret | Wasabi secret key |
-| `VITE_WASABI_ENDPOINT` | variable | 可选，如 `https://s3.ap-northeast-1.wasabisys.com` |
-| `VITE_WASABI_BUCKET` | variable | 可选，如 `soccer-cn` |
-| `VITE_API_BASE_URL` | variable | 可选，需要从 API 发现 Wasabi 配置时使用 |
+需要换账号或 bucket 时，可用同名的 `VITE_WASABI_*` 环境变量或 Docker build-arg 覆盖：
 
-未配置时镜像仍可构建，只是队徽等图片资源不可用。
+| 名称 | 说明 |
+| --- | --- |
+| `VITE_WASABI_ACCESS_KEY` | Wasabi access key |
+| `VITE_WASABI_SECRET_KEY` | Wasabi secret key |
+| `VITE_WASABI_ENDPOINT` | 如 `https://s3.ap-northeast-1.wasabisys.com` |
+| `VITE_WASABI_BUCKET` | 如 `soccer-jp` |
+| `VITE_API_BASE_URL` | 可选，从 API 发现 Wasabi 配置时使用 |
+
+注意：图片 URL 在浏览器端用 SigV4 现签，access/secret key 最终会内联进公开的 JS
+bundle，不能当作服务端密钥保密。
 
 ## Styling
 
