@@ -25,6 +25,8 @@ services:
     environment:
       # nginx 启动时 envsubst 到 /etc/nginx/conf.d/default.conf
       WS_UPSTREAM: ${WS_UPSTREAM:-http://103.171.35.90:7070}
+      # WS 握手改写的 Origin（ws-service 生产白名单默认只有这个来源）
+      WS_ORIGIN: ${WS_ORIGIN:-https://www.hypersports.com}
     extra_hosts:
       # 让容器里的 host.docker.internal 指向宿主机（Linux 需要显式声明）
       - "host.docker.internal:host-gateway"

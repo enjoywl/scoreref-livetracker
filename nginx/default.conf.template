@@ -37,6 +37,10 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
+        # ws-service 生产环境按 Origin 白名单校验握手（默认只放行
+        # https://www.hypersports.com），直接通过 IP:端口访问会被 403。
+        # 这里统一改写成白名单内的来源；需要别的值时用 WS_ORIGIN 覆盖。
+        proxy_set_header Origin ${WS_ORIGIN};
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;

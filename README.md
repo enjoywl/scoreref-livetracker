@@ -118,9 +118,12 @@ docker build \
   -t 172.25.0.1:8082/hypersports/scoreref-livetracker:local .
 ```
 
-运行时只需要一个变量：`WS_UPSTREAM`，nginx 会把同源的 `/v1/soccer/ws` 转发到
-`${WS_UPSTREAM}/ws`（与 Worker 版行为一致）。默认值是生产 ws-service
-`http://103.171.35.90:7070`，本机调试时覆盖成宿主机的 7070：
+运行时主要变量：
+
+- `WS_UPSTREAM`：nginx 把同源的 `/v1/soccer/ws` 转发到 `${WS_UPSTREAM}/ws`（与 Worker 版行为一致），默认生产 ws-service `http://103.171.35.90:7070`；
+- `WS_ORIGIN`：WS 握手时改写的 `Origin`，默认 `https://www.hypersports.com`（ws-service 生产 `WS_ALLOWED_ORIGINS` 的默认值）。通过 IP:端口访问时浏览器 Origin 不在白名单里，不改写会 403；后端把实际来源加入 `WS_ALLOWED_ORIGINS` 后，可用 `--origin` 或环境变量改成实际来源。
+
+启动后访问 `http://<部署机IP>:8088/`、`/livetracker/<matchId>`；本机调试时把 WS 覆盖成宿主机的 7070：
 
 ```bash
 # 部署机：拉 CI 推的镜像（compose 里有 build 段，缺镜像时会本地构建，所以先 pull）

@@ -8,7 +8,7 @@
 #   ./deploy.sh build           # 用当前源码构建镜像再启动
 #   ./deploy.sh logs|status|down
 #
-# 也可用环境变量：DOCKER_REGISTRY / IMAGE_TAG / APP_PORT / WS_UPSTREAM。
+# 也可用环境变量：DOCKER_REGISTRY / IMAGE_TAG / APP_PORT / WS_UPSTREAM / WS_ORIGIN。
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -17,6 +17,7 @@ DOCKER_REGISTRY="${DOCKER_REGISTRY:-172.25.0.1:8082}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 APP_PORT="${APP_PORT:-8088}"
 WS_UPSTREAM="${WS_UPSTREAM:-http://103.171.35.90:7070}"
+WS_ORIGIN="${WS_ORIGIN:-https://www.hypersports.com}"
 SERVICE=web
 
 usage() {
@@ -33,6 +34,7 @@ usage() {
   --tag TAG    镜像 tag（默认 ${IMAGE_TAG}）
   --port PORT  宿主机端口（默认 ${APP_PORT}）
   --ws URL     WebSocket 后端（默认 ${WS_UPSTREAM}）
+  --origin URL WS 握手 Origin（默认 ${WS_ORIGIN}）
   --no-pull    启动前不拉镜像
   -h, --help   显示帮助
 EOF
@@ -46,13 +48,14 @@ while [[ $# -gt 0 ]]; do
 		--tag) IMAGE_TAG="$2"; shift 2 ;;
 		--port) APP_PORT="$2"; shift 2 ;;
 		--ws) WS_UPSTREAM="$2"; shift 2 ;;
+		--origin) WS_ORIGIN="$2"; shift 2 ;;
 		--no-pull) NO_PULL=1; shift ;;
 		-h|--help) usage; exit 0 ;;
 		*) echo "未知参数: $1" >&2; usage >&2; exit 1 ;;
 	esac
 done
 
-export DOCKER_REGISTRY IMAGE_TAG APP_PORT WS_UPSTREAM
+export DOCKER_REGISTRY IMAGE_TAG APP_PORT WS_UPSTREAM WS_ORIGIN
 
 if docker compose version >/dev/null 2>&1; then
 	COMPOSE=(docker compose)
@@ -137,4 +140,5 @@ echo "    镜像:   ${IMAGE}"
 echo "    地址:   http://<本机IP>:${APP_PORT}"
 echo "    健康:   http://<本机IP>:${APP_PORT}/healthz"
 echo "    WS:     ${WS_UPSTREAM}/ws"
+echo "    Origin: ${WS_ORIGIN}"
 "${COMPOSE[@]}" ps "$SERVICE"

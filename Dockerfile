@@ -42,6 +42,10 @@ FROM ${NGINX_IMAGE}
 # 本机调试可用 -e WS_UPSTREAM=http://host.docker.internal:7070 覆盖。
 ENV WS_UPSTREAM=http://103.171.35.90:7070
 
+# WS 握手时发给后端的 Origin。ws-service 生产环境只放行这个来源，
+# 前端通过 IP:端口访问时需要改写成它；后端白名单改成实际来源后可覆盖。
+ENV WS_ORIGIN=https://www.hypersports.com
+
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/build/client /usr/share/nginx/html
 
