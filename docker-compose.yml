@@ -1,0 +1,37 @@
+# 部署用 compose：默认拉 Gitea CI 推到内网 registry 的镜像。
+#
+#   docker compose pull
+#   APP_PORT=8088 docker compose up -d
+#
+# 默认连生产 ws-service（http://103.171.35.90:7070）；本机调试时覆盖：
+#   WS_UPSTREAM=http://host.docker.internal:7070 docker compose up -d
+#
+# 本地想直接从源码构建镜像时：把 VITE_* 以及 APP_PORT / WS_UPSTREAM 放进
+# 同目录的 .env（已被 .gitignore 忽略），然后 `docker compose build`。
+services:
+  web:
+    image: ${DOCKER_REGISTRY:-172.25.0.1:8082}/hypersports/scoreref-livetracker:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      args:
+        VITE_WASABI_ACCESS_KEY: ${VITE_WASABI_ACCESS_KEY:-}
+        VITE_WASABI_SECRET_KEY: ${VITE_WASABI_SECRET_KEY:-}
+        VITE_WASABI_ENDPOINT: ${VITE_WASABI_ENDPOINT:-}
+        VITE_WASABI_BUCKET: ${VITE_WASABI_BUCKET:-}
+        VITE_WASABI_REGION: ${VITE_WASABI_REGION:-}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    ports:
+      - "${APP_PORT:-8088}:80"
+    environment:
+      # nginx 启动时 envsubst 到 /etc/nginx/conf.d/default.conf
+      WS_UPSTREAM: ${WS_UPSTREAM:-http://103.171.35.90:7070}
+    extra_hosts:
+      # 让容器里的 host.docker.internal 指向宿主机（Linux 需要显式声明）
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s

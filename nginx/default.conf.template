@@ -1,0 +1,54 @@
+# 由 nginx 官方镜像 entrypoint 在启动时 envsubst 渲染：
+# /etc/nginx/templates/*.template -> /etc/nginx/conf.d/*.conf
+# 只有真实存在的环境变量会被替换（${WS_UPSTREAM}），$uri/$http_upgrade 等
+# nginx 变量保持原样。
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # 前端只在构建时生成一次，开启压缩收益明显。
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # 探针（容器 HEALTHCHECK / compose healthcheck 用）
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # 带 hash 的构建产物可以长期缓存。
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # 与 Workers 版 workers/app.ts 一致：前端同源连 /v1/soccer/ws，
+    # 这里转发到 hypersports-ws-service 的 STOMP 端点 /ws。
+    location = /v1/soccer/ws {
+        proxy_pass ${WS_UPSTREAM}/ws;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # STOMP 长连接：不要缓冲，也不要 60s 就断开。
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # SPA：/livetracker/:matchId 等路由直接刷新时回落到 index.html。
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

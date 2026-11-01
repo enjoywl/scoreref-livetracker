@@ -1,0 +1,148 @@
+# scoreref-livetracker CI/CD
+# 推送分支/tag：构建静态 SPA 镜像并推送到内网 Registry
+# Pull Request：只构建镜像做校验，不推
+#
+# 镜像里前端需要 Wasabi 配置（Vite 构建期内联），在 Gitea 仓库配置：
+#   secrets: VITE_WASABI_ACCESS_KEY / VITE_WASABI_SECRET_KEY
+#   vars:    VITE_WASABI_ENDPOINT / VITE_WASABI_BUCKET / VITE_API_BASE_URL
+# 未配置时也能出镜像，只是队徽等图片资源不可用。
+name: Live Tracker CI/CD
+
+on:
+  push:
+    branches: [ main, master, develop, ci_test ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  DOCKER_REGISTRY: 172.25.0.1:8082
+  IMAGE_NAME: scoreref-livetracker
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: 172.25.0.1:8082/hypersports-ci-maven:latest
+      options: --user root --privileged
+
+    steps:
+      # 1. 代码检出
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. 生成版本号（与后端仓库保持一致：
+      #    原始版本-时间戳-分支-提交ID；tag 构建直接用 tag）
+      - name: Generate version
+        id: version
+        run: |
+          ORIGINAL_VERSION=$(sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p' package.json | head -n1)
+          ORIGINAL_VERSION=${ORIGINAL_VERSION:-0.0.0}
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          COMMIT_SHORT=$(echo "${GITHUB_SHA}" | cut -c1-8)
+          BRANCH_SAFE=$(echo "${GITHUB_REF_NAME}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            FULL_VERSION="${GITHUB_REF_NAME#v}"
+            VERSION_TYPE="release"
+          else
+            FULL_VERSION="${ORIGINAL_VERSION}-${TIMESTAMP}-${BRANCH_SAFE}-${COMMIT_SHORT}"
+            VERSION_TYPE="snapshot"
+          fi
+
+          echo "full_version=${FULL_VERSION}" >> $GITHUB_OUTPUT
+          echo "version_type=${VERSION_TYPE}" >> $GITHUB_OUTPUT
+          echo "commit_short=${COMMIT_SHORT}" >> $GITHUB_OUTPUT
+
+          echo "=========================================="
+          echo "Original Version: ${ORIGINAL_VERSION}"
+          echo "Image Version:    ${FULL_VERSION}"
+          echo "Version Type:     ${VERSION_TYPE}"
+          echo "Commit:           ${COMMIT_SHORT}"
+          echo "Branch/Tag:       ${GITHUB_REF_NAME}"
+          echo "=========================================="
+
+      # 3. 登录 Docker Registry
+      - name: Login to Docker Registry
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "${{ vars.DOCKER_PASSWORD }}" | docker login ${{ env.DOCKER_REGISTRY }} \
+            --username "${{ vars.DOCKER_USERNAME }}" \
+            --password-stdin
+
+      # 4. 构建镜像。node 安装/typecheck/静态构建都在 Dockerfile 的 build
+      #    阶段完成，CI 容器本身不需要 Node。
+      #    --build-arg 不带值时会从当前环境读取，避免把凭据写进命令行。
+      - name: Build Docker image
+        env:
+          VITE_WASABI_ACCESS_KEY: ${{ secrets.VITE_WASABI_ACCESS_KEY }}
+          VITE_WASABI_SECRET_KEY: ${{ secrets.VITE_WASABI_SECRET_KEY }}
+          VITE_WASABI_ENDPOINT: ${{ vars.VITE_WASABI_ENDPOINT }}
+          VITE_WASABI_BUCKET: ${{ vars.VITE_WASABI_BUCKET }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          IMAGE="${DOCKER_REGISTRY}/hypersports/${IMAGE_NAME}"
+          VERSION="${{ steps.version.outputs.full_version }}"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            VERSION="pr-${GITHUB_SHA:0:8}"
+          fi
+
+          docker build \
+            --tag "${IMAGE}:${VERSION}" \
+            --build-arg VITE_WASABI_ACCESS_KEY \
+            --build-arg VITE_WASABI_SECRET_KEY \
+            --build-arg VITE_WASABI_ENDPOINT \
+            --build-arg VITE_WASABI_BUCKET \
+            --build-arg VITE_API_BASE_URL \
+            .
+
+          echo "IMAGE_VERSION=${VERSION}" >> $GITHUB_ENV
+
+      # 5. 推送镜像
+      - name: Push Docker image
+        if: github.event_name != 'pull_request'
+        run: |
+          IMAGE="${DOCKER_REGISTRY}/hypersports/${IMAGE_NAME}"
+          VERSION="${IMAGE_VERSION}"
+
+          docker push "${IMAGE}:${VERSION}"
+
+          # 只有默认分支和 tag 才更新 latest
+          if [[ "${GITHUB_REF_NAME}" == "main" || "${GITHUB_REF_NAME}" == "master" || "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"
+            docker push "${IMAGE}:latest"
+          fi
+
+          echo "=========================================="
+          echo "Image pushed: ${IMAGE}:${VERSION}"
+          echo "=========================================="
+
+      # 6. 构建信息
+      - name: Save build info
+        if: github.event_name != 'pull_request'
+        run: |
+          cat > build-info.txt << EOF
+          ========================================
+          Build Information
+          ========================================
+          Image:        ${DOCKER_REGISTRY}/hypersports/${IMAGE_NAME}
+          Version:      ${IMAGE_VERSION}
+          Build Date:   $(date -Iseconds)
+          Git Commit:   ${{ steps.version.outputs.commit_short }}
+          Git Ref:      ${GITHUB_REF_NAME}
+          CI Runner:    ${{ runner.name }}
+          Base URL:     ${{ vars.VITE_API_BASE_URL }}
+          ========================================
+          EOF
+          cat build-info.txt
+
+      # 7. 清理
+      - name: Cleanup
+        if: always()
+        run: |
+          docker system prune -f || true
