@@ -24,10 +24,12 @@ export default {
 				// Production: proxy via VPC service binding
 				return env.API_BINDING.fetch(request);
 			}
-			// Dev: proxy to local backend
+			// Dev: proxy to local hypersports-ws-service (STOMP endpoint)
 			const target = new URL(request.url);
-			target.host = "localhost:3000";
+			target.host = "localhost:7070";
 			target.protocol = "http:";
+			target.pathname = "/ws";
+			target.search = "";
 			return fetch(target.toString(), request);
 		}
 

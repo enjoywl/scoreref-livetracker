@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { LiveTracker, type MatchState } from '~/engine/LiveTracker';
-import TopBar from '~/components/TopBar';
 import FieldView from '~/components/FieldView';
 import Timeline from '~/components/Timeline';
 import Controls from '~/components/Controls';
+import Loading from '~/components/Loading';
 
 export function meta() {
   return [
@@ -16,24 +16,40 @@ const INITIAL_STATE: MatchState = {
   ballPos: null, activeTooltip: null, currentVC: null, currentPG: '',
   possession: null, playing: false, speed: 10, t: 0, totalMs: 0,
   score: '0-0', minute: "0'", statusText: 'LIVE',
-  zoneAnim: null,
+  zoneAnim: null, goalCelebrating: false, closeupArt: null, shootout: null,
+  breakStats: null,
 };
 
 export default function Home() {
   const trackerRef = useRef<LiveTracker | null>(null);
   const [state, setState] = useState<MatchState>(INITIAL_STATE);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     (async () => {
-      const resp = await fetch(`data/demo.json?t=${Date.now()}`);
-      const raw = await resp.json();
-      const events = Array.isArray(raw) ? raw : (raw as { events: Array<Record<string, string>> }).events;
-      const t = new LiveTracker(events, setState);
-      trackerRef.current = t;
-      setLoading(false);
-      t.seek(0);
+      try {
+        const resp = await fetch(`data/demo.json?t=${Date.now()}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const raw = await resp.json();
+        const events = Array.isArray(raw) ? raw : (raw as { events: Array<Record<string, string>> }).events;
+        if (!Array.isArray(events) || events.length === 0) {
+          setLoading(false);
+          return;
+        }
+        const t = new LiveTracker(events, setState);
+        trackerRef.current = t;
+        setLoading(false);
+        t.seek(0);
+      } catch (e) {
+        setError(e instanceof Error ? e : new Error('Failed to load match data'));
+        setLoading(false);
+      }
     })();
+
+    return () => {
+      trackerRef.current?.destroy();
+    };
   }, []);
 
   useEffect(() => {
@@ -54,12 +70,36 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) {
+    return <Loading label="Preparing match" detail="Loading the demo tracking feed…" />;
+  }
 
-  const T = trackerRef.current!;
+  if (error) {
+    return (
+      <div className="screen-message" role="alert">
+        <div className="screen-message-icon" aria-hidden="true">!</div>
+        <h1>Unable to load match</h1>
+        <p>{error.message || 'Something went wrong while fetching the demo data.'}</p>
+        <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
+          Reload page
+        </button>
+      </div>
+    );
+  }
+
+  const T = trackerRef.current;
+  if (!T || T.events.length === 0) {
+    return (
+      <div className="screen-message">
+        <div className="screen-message-icon" aria-hidden="true">?</div>
+        <h1>No match data</h1>
+        <p>The demo feed is empty. Add events to public/data/demo.json to see the replay.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
-      <TopBar state={state} team1={T.team1} team2={T.team2} team1Logo={T.team1Logo} team2Logo={T.team2Logo} champ={T.champ} />
       <FieldView tracker={T} state={state} />
       <Timeline events={T.events} totalMs={state.totalMs || T.totalMs} t={state.t} tracker={T} />
       <Controls state={state} tracker={T} />

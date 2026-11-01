@@ -1,129 +1,1943 @@
 :root {
-  --bg: #0d1117; --panel: #161b22; --text: #e6edf3; --dim: #8b949e;
-  --accent: #58a6ff; --home: #f0f0f0; --away: #ffd43b;
+  --bg: #0d1117;
+  --bg-deep: #06090f;
+  --panel: #0e141d;
+  --surface-1: rgba(255, 255, 255, 0.035);
+  --surface-2: rgba(255, 255, 255, 0.065);
+  --surface-3: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: #eef4ff;
+  --dim: #93a1b5;
+  --dim-2: #5f6c80;
+  --accent: #5eb4ff;
+  --accent-strong: #2f8fff;
+  --accent-soft: rgba(94, 180, 255, 0.14);
+  --home: #f2f5fa;
+  --away: #ffd43b;
+  --danger: #ff5a5f;
+  --gold: #ffd700;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body, #root { height: 100%; }
 
+/* Mobile browsers: follow the dynamic viewport so the stage isn't clipped by
+   the collapsing URL bar. Falls back to 100% above. */
+@supports (height: 100dvh) {
+  html, body, #root { height: 100dvh; }
+}
+
 body {
-  background: var(--bg); color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  user-select: none; -webkit-user-select: none;
+  background: var(--bg-deep);
+  color: var(--text);
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button { font-family: inherit; }
+
+:focus-visible {
+  outline: 2px solid rgba(94, 180, 255, 0.8);
+  outline-offset: 2px;
 }
 
 .app {
-  height: 100%; display: flex; flex-direction: column; overflow: hidden;
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-deep);
 }
 
-/* TopBar */
-.topbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 20px; background: var(--panel); border-bottom: 1px solid #21262d; z-index: 10;
-}
-.champ { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 1.5px; }
-.match { display: flex; align-items: center; gap: 18px; }
-.team { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-.team.home { color: var(--home); }
-.team.away { color: var(--away); }
-.team-logo { width: 24px; height: 24px; object-fit: contain; }
-.score { font-size: 28px; font-weight: 900; letter-spacing: 3px; background: #21262d; padding: 3px 18px; border-radius: 6px; }
-.minute { font-size: 13px; color: var(--accent); font-weight: 600; min-width: 42px; text-align: center; }
-.live-dot { width: 8px; height: 8px; border-radius: 50%; background: #f85149; animation: pulse-dot 1.2s infinite; display: inline-block; }
-@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+/* ==========================================================================
+   Field
+   ========================================================================== */
 
-/* Field */
 .field-scene {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(ellipse at 50% 60%, #152015 0%, #080e08 100%);
-  min-height: 0; overflow: hidden; position: relative;
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 14px 0 12px;
+  overflow: hidden;
+  container-type: size;
+  background: radial-gradient(ellipse at 50% 58%, #101b1b 0%, #080d12 55%, #05080c 100%);
 }
-.field-wrap {
-  position: relative; width: 98%; max-width: 1400px; aspect-ratio: 297/210;
-}
-.field-wrap img { width: 100%; height: 100%; display: block; }
-.venue-img { position: absolute; top: 0; left: 0; z-index: 0; object-fit: contain; transform: translateY(-15%); }
-.pitch-img { position: relative; z-index: 1; }
-.field-wrap svg.overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
 
-/* Tooltip */
-.html-tooltip {
-  position: absolute; z-index: 20; pointer-events: none; white-space: nowrap;
-  transform: translate(-50%, calc(-100% - 6px));
+.field-scene::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(3, 6, 10, 0.6) 100%);
 }
+
+.field-wrap {
+  position: relative;
+  z-index: 2;
+  width: min(98cqw, calc(100cqh * 322 / 182));
+  max-width: 1400px;
+  aspect-ratio: 322 / 182;
+  container-type: inline-size;
+}
+
+@supports not (width: 1cqw) {
+  .field-wrap { width: 98%; }
+}
+
+/* Keep the stage's own chrome from eating pitch space on phones. */
+@media (max-width: 860px) {
+  .field-scene { padding: 6px 0; }
+}
+
+.field-wrap .pitch-img { width: 100%; height: 100%; display: block; }
+.pitch-img { position: relative; z-index: 1; }
+.field-wrap svg.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Perimeter LED marquee: an HTML layer between the static board SVG and the
+   player/ball overlay. Chrome does not composite SVG CSS transforms, so the
+   ticker lives here and is driven at 20fps by JS (see BoardMarqueeLayer).
+   Each strip holds two copies of the word; translating by 50% of its own
+   width moves exactly one marquee period. */
+.board-marquee-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+/* clip-path 只负责抠出面板四边形；overflow 兜底，避免条带的布局尺寸在
+   个别浏览器里撑出可滚动区域。 */
+.board-marquee-panel { position: absolute; overflow: hidden; }
+.board-marquee-holder {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+}
+.board-marquee-strip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background-repeat: repeat-x;
+  background-size: 50% 100%;
+  will-change: transform;
+}
+
+/* Tooltip — always anchored at the pitch center (CENTER_FIELD projected by
+   innerToPercent in coords.ts) instead of following the ball. */
+.html-tooltip {
+  position: absolute;
+  z-index: 20;
+  left: 49.89%;
+  top: 57.23%;
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  /* Overlay text is sized in em off this stage token and scales with the
+     pitch (calibrated to the old desktop size at a ~1000px-wide stage).
+     Without it the fixed px tooltip dwarfs a shrunken pitch on mobile.
+     The plain px line is the fallback for browsers without container units. */
+  font-size: 12px;
+  font-size: clamp(9.5px, 1.4cqi, 18px);
+}
+
+/* 带结果插图(SVG 图标)的事件: 卡片停在球场下半部(近边线之内、积分板上方),
+   与顶部的插图拉开距离. 23% 底距 + 0.5em 让卡片底边落在近边线(~84.8%)以内,
+   并给底部积分板(约 12% 高, 随 cqi 缩放)留出空隙.
+   进球卡片同样停在这里, 给球门前的进球动画让位.
+   仅用于未锚定点位的事件. */
+.html-tooltip.has-art,
+.html-tooltip.is-bottom {
+  top: auto;
+  bottom: calc(23% + 0.5em);
+  transform: translate(-50%, 0);
+}
+
 .tt-inner {
-  background: rgba(13, 51, 32, 0.92); border: 1px solid rgba(74, 156, 94, 0.8);
-  border-radius: 6px; padding: 4px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.3em 0.6em 0.3em 0.75em;
+  border-radius: 0.6em;
+  background: rgba(18, 24, 34, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   text-align: left;
 }
-.tt-team { font-size: 11px; font-weight: 700; color: #fff; line-height: 1.3; }
-.tt-event-line { display: flex; align-items: center; justify-content: flex-start; gap: 2px; }
-.tt-icon { font-size: 12px; }
-.tt-event { font-size: 10px; color: #ddd; }
-.tt-player { font-size: 9px; color: #aaa; }
 
-/* Controls */
+/* 球队图标在信息左侧，队名/事件名纵向排列 */
+.tt-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+.tt-inner::before {
+  content: '';
+  position: absolute;
+  top: 0.5em;
+  bottom: 0.5em;
+  left: 0;
+  width: 0.22em;
+  border-radius: 0 0.22em 0.22em 0;
+  background: var(--dim-2);
+}
+
+.tt-inner.is-home::before { background: var(--home); }
+.tt-inner.is-away::before { background: var(--away); }
+
+.tt-team {
+  margin-bottom: 0;
+  font-size: 0.8em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+}
+
+.tt-crest {
+  /* Match the scoreboard/banner crest size. */
+  width: 1.85em;
+  height: 1.85em;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: contain;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Set the size on the row itself so its line box is not inflated by the
+   tooltip's inherited font-size. */
+.tt-event-line { display: flex; align-items: center; gap: 0.3em; font-size: 0.8em; }
+.tt-event { font-size: 1em; font-weight: 500; color: var(--dim); }
+/* PG sits on its own row at the bottom. */
+.tt-player-row {
+  margin-top: 0.08em;
+  font-size: 0.68em;
+}
+.tt-player { font-size: 1em; color: var(--dim); }
+
+/* Minute-level clock sits on the right of the tooltip for static events. */
+.tt-minute {
+  align-self: center;
+  margin-left: 0.08em;
+  font-size: 0.72em;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  /* 时间胶囊: 与 tooltip 主色一致的浅底色 */
+  padding: 0.18em 0.45em;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(94, 180, 255, 0.3);
+}
+
+/* Result illustration (shot / penalty / card / VAR / injury / substitution):
+   its own goal/keeper/ball/trajectory art, parked in the upper half of the
+   pitch itself (inside the far touchline at y≈39.6%, above the halfway line
+   at y≈57%), so it never sits in the stands. The matching tooltip docks at
+   the bottom centre (.html-tooltip.has-art), keeping the two far apart on
+   small screens. Kept small so the pitch stays readable. */
+/* 居中的插图容器(无背景, 保留 SVG 原样) */
+.result-cam-art {
+  position: absolute;
+  z-index: 8;
+  left: 49.89%;
+  top: 41%;
+  width: clamp(44px, 9cqi, 100px);
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
+  animation: resultIllustrationIn 0.35s ease-out both;
+}
+
+/* 换人插图比其他事件更小, 避免在场上显得过大 */
+.result-cam-art.is-sub {
+  width: clamp(32px, 6.5cqi, 72px);
+}
+
+.result-cam-illustration {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+}
+
+.result-cam-illustration.is-away {
+  transform: scaleX(-1);
+}
+
+/* 从下方轻轻升起并淡入 */
+@keyframes resultIllustrationIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(14px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Penalty shootout result — sits just below the event tooltip, above the near
+   touchline. Team names on both sides, score in the middle, five kick slots
+   per round (empty circle = not taken yet). Extra rounds wrap below, still
+   five slots per row. */
+.shootout-board {
+  position: absolute;
+  z-index: 9;
+  left: 49.89%;
+  bottom: calc(15.8% + 0.35em);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8em;
+  padding: 0.32em 0.75em;
+  border-radius: 0.55em;
+  background: rgba(6, 12, 18, 0.74);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 12px; /* fallback without container units */
+  font-size: clamp(8px, 1.05cqi, 13px);
+}
+
+.shootout-side {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.shootout-side.is-home { justify-content: flex-end; }
+.shootout-side.is-away { justify-content: flex-start; }
+
+/* Team names sit at the two outer edges. */
+.shootout-side.is-home .shootout-team { order: -1; }
+.shootout-side.is-away .shootout-team { order: 1; }
+
+.shootout-team {
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.shootout-rounds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18em;
+}
+
+.shootout-row {
+  display: flex;
+  align-items: center;
+  gap: 0.24em;
+}
+
+/* Away kicks run from the team name towards the centre, mirroring the home side. */
+.shootout-side.is-away .shootout-row {
+  flex-direction: row-reverse;
+}
+
+.shootout-score {
+  display: flex;
+  align-items: center;
+  gap: 0.28em;
+  font-weight: 800;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.shootout-goals {
+  min-width: 1em;
+  text-align: center;
+  font-size: 1.1em;
+}
+
+.shootout-dash {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.shootout-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.35em;
+  height: 1.35em;
+  border-radius: 50%;
+  font-size: 0.9em;
+  font-weight: 800;
+  line-height: 1;
+  animation: shootoutMarkIn 0.25s ease-out both;
+}
+
+.shootout-mark.is-goal {
+  color: #06230f;
+  background: #35d06a;
+  box-shadow: 0 0 0.45em rgba(53, 208, 106, 0.45);
+}
+
+.shootout-mark.is-miss {
+  color: #fff;
+  background: #e0403f;
+  box-shadow: 0 0 0.45em rgba(224, 64, 63, 0.4);
+}
+
+.shootout-mark.is-empty {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+}
+
+@keyframes shootoutMarkIn {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ==========================================================================
+   Break stats overlay (half time / full time)
+   ========================================================================== */
+
+/* 统计遮罩打开时球场(含场上动画)整体虚化并压暗, 让统计卡片成为焦点;
+   底部比分 banner 不在虚化范围内, 通过更高的 z-index 浮在遮罩之上 */
+.field-wrap .pitch-img,
+.field-wrap svg.overlay,
+.field-wrap .board-marquee-layer {
+  transition: filter 0.32s ease;
+}
+
+.field-wrap.is-break .pitch-img,
+.field-wrap.is-break svg.overlay,
+.field-wrap.is-break .board-marquee-layer {
+  filter: blur(12px) saturate(0.85) brightness(0.82);
+}
+
+/* 窄屏球场本身很小, 同样的 px 模糊会把画面糊没, 收一档保留球场轮廓 */
+@media (max-width: 860px) {
+  .field-wrap.is-break .pitch-img,
+  .field-wrap.is-break svg.overlay,
+  .field-wrap.is-break .board-marquee-layer {
+    filter: blur(6px) saturate(0.85) brightness(0.85);
+  }
+}
+
+/* 半透明压暗层覆盖整块球场；卡片居中，7 秒自动轮播统计页。 */
+.break-stats {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5cqi;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(4, 8, 13, 0.26), rgba(4, 8, 13, 0.46) 84%),
+    rgba(3, 7, 12, 0.1);
+  pointer-events: auto;
+  font-size: 12px; /* fallback without container units */
+  font-size: clamp(10px, 1.5cqi, 18px);
+  animation: breakOverlayIn 0.28s ease-out both;
+}
+
+.bs-shell {
+  position: relative;
+  width: min(80cqi, 620px);
+}
+
+/* 半透明玻璃卡片: 叠加在虚化的球场上, 仍靠自身 blur 保证文字对比度 */
+.break-stats-card {
+  padding: 0.9em 1em 0.75em;
+  border-radius: 1.05em;
+  background:
+    radial-gradient(120% 150% at 0% 0%, color-mix(in srgb, var(--bs-home) 14%, transparent), transparent 58%),
+    radial-gradient(120% 150% at 100% 0%, color-mix(in srgb, var(--bs-away) 14%, transparent), transparent 58%),
+    linear-gradient(160deg, rgba(22, 30, 41, 0.76), rgba(8, 13, 19, 0.84));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 1.2em 3em rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  animation: bsCardIn 0.36s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+/* 第一页「比分」: 不渲染统计主体, 放大球队与比分头部独立成页 */
+.break-stats-card.is-score-slide {
+  padding: 1.4em 1em 1.2em;
+}
+
+.is-score-slide .bs-head {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.is-score-slide .bs-kicker { margin-bottom: 0.9em; }
+
+.is-score-slide .bs-scoreline {
+  padding: 0.35em 0 0.55em;
+  gap: 0.9em;
+}
+
+.is-score-slide .bs-crest {
+  width: 3.4em;
+  height: 3.4em;
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.is-score-slide .bs-team-name { font-size: 1em; }
+
+.is-score-slide .bs-score { font-size: 2.6em; }
+
+.bs-head {
+  padding-bottom: 0.6em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.bs-kicker {
+  display: block;
+  margin-bottom: 0.42em;
+  text-align: center;
+  font-size: 0.66em;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.52);
+}
+
+.bs-scoreline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.7em;
+}
+
+.bs-team {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  min-width: 0;
+}
+
+.bs-team.is-home { justify-content: flex-start; }
+.bs-team.is-away { justify-content: flex-end; }
+
+.bs-team-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82em;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.bs-team.is-away .bs-team-name { text-align: right; }
+
+.bs-crest {
+  width: 2.35em;
+  height: 2.35em;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: contain;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.bs-score {
+  padding: 0 0.15em;
+  font-size: 1.75em;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
+.bs-slide {
+  min-height: 8.7em;
+  padding-top: 0.62em;
+  animation: bsSlideIn 0.32s ease-out both;
+}
+
+.bs-slide-title {
+  margin-bottom: 0.55em;
+  text-align: center;
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.bs-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.62em;
+}
+
+/* 同一页放全部统计时按列排布: 列优先填充, 行数由组件按条目数写入 CSS 变量 */
+.bs-rows.is-columns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--bs-rows-wide, 6), auto);
+  column-gap: 1.15em;
+  row-gap: 0.55em;
+  align-items: start;
+}
+
+.bs-rows.is-columns .bs-row { min-width: 0; }
+
+/* 行结构: [主队值] [主队条] [统计名称(中间)] [客队条] [客队值] */
+.bs-row {
+  display: grid;
+  grid-template-columns: 2.3em minmax(0, 1fr) auto minmax(0, 1fr) 2.3em;
+  align-items: center;
+  column-gap: 0.45em;
+  min-width: 0;
+}
+
+.bs-row-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.bs-value {
+  font-size: 0.94em;
+  font-weight: 800;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.94);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.bs-value.is-away { text-align: center; }
+
+.bs-track {
+  display: flex;
+  height: 0.46em;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* 两个半条从外侧向中间的 label 延伸 */
+.bs-track.is-home { justify-content: flex-start; }
+.bs-track.is-away { justify-content: flex-end; }
+
+.bs-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.45s ease;
+}
+
+.bs-fill.is-home {
+  background: var(--bs-home);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bs-home) 78%, #fff), var(--bs-home));
+  transform-origin: left center;
+  animation: bsBarHomeIn 0.55s 0.12s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.bs-fill.is-away {
+  background: var(--bs-away);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bs-away) 78%, #fff), var(--bs-away));
+  transform-origin: right center;
+  animation: bsBarAwayIn 0.55s 0.12s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.bs-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.36em;
+  margin-top: 0.6em;
+}
+
+.bs-dot {
+  width: 0.42em;
+  height: 0.42em;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.bs-dot.is-active {
+  width: 1.25em;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.bs-empty {
+  display: grid;
+  place-items: center;
+  min-height: 8.7em;
+  font-size: 0.85em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* 轮播箭头贴在卡片外侧；窄屏隐藏，保留圆点切换。 */
+.bs-nav {
+  position: absolute;
+  top: 50%;
+  width: 2.1em;
+  height: 2.1em;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(10, 16, 23, 0.78);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 1.05em;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.bs-nav:hover {
+  background: rgba(30, 43, 58, 0.92);
+  color: #fff;
+}
+
+.bs-nav.is-prev { left: -2.7em; }
+.bs-nav.is-next { right: -2.7em; }
+
+@keyframes breakOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bsCardIn {
+  from { opacity: 0; transform: translateY(0.6em) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bsSlideIn {
+  from { opacity: 0; transform: translateY(0.3em); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bsBarHomeIn {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes bsBarAwayIn {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@container (max-width: 520px) {
+  /* 底部比分 banner 固定压在球场下沿, 给遮罩留出它的高度, 卡片整体上移避免遮挡最后一行 */
+  .break-stats { padding-bottom: 4.6em; }
+  .bs-dots { margin-top: 0.4em; }
+  .bs-shell { width: 90cqi; }
+  .bs-nav { display: none; }
+  .break-stats-card { padding: 0.8em 0.85em 0.7em; }
+  .bs-team-name { font-size: 0.78em; }
+  .bs-crest { width: 2em; height: 2em; }
+  /* 窄屏保持两列, 收紧列距与两侧数值列宽 */
+  .bs-rows.is-columns {
+    column-gap: 0.8em;
+    row-gap: 0.5em;
+  }
+  .bs-rows.is-columns .bs-row {
+    grid-template-columns: 1.9em minmax(0, 1fr) auto minmax(0, 1fr) 1.9em;
+    column-gap: 0.3em;
+  }
+  .bs-slide { padding-top: 0.45em; }
+  .bs-slide-title { margin-bottom: 0.35em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .break-stats,
+  .break-stats-card,
+  .bs-slide,
+  .bs-fill.is-home,
+  .bs-fill.is-away {
+    animation: none;
+  }
+  .bs-dot { transition: none; }
+}
+
+/* ==========================================================================
+   Field scoreboard overlay
+   ========================================================================== */
+
+/* Scoreboard strip at the bottom of the SVG/field area */
+.field-scoreboard {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* 高于 .break-stats(15)：半场/全场统计期间底部比分 banner 仍要显示 */
+  z-index: 16;
+  padding: 0 1.5cqi 1cqi;
+  pointer-events: none;
+  font-size: 11px; /* fallback without container units */
+  font-size: clamp(8.5px, 1.2cqi, 15px);
+}
+
+.fs-card {
+  width: min(92cqi, 680px);
+  margin: 0 auto;
+  padding: 0.5em 1em;
+  border-radius: var(--radius-md);
+  background: rgba(6, 9, 15, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+
+.fs-main {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1.2em;
+}
+
+.fs-side {
+  display: grid;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 0.1em 0.55em;
+  min-width: 0;
+}
+
+.fs-home {
+  grid-template-columns: auto 1fr;
+  justify-items: start;
+  text-align: left;
+}
+
+.fs-home .fs-crest { grid-column: 1; grid-row: 1 / 3; }
+.fs-home .fs-team-name { grid-column: 2; grid-row: 1; }
+.fs-home .fs-mini-stats { grid-column: 2; grid-row: 2; }
+
+.fs-away {
+  grid-template-columns: 1fr auto;
+  justify-items: end;
+  text-align: right;
+}
+
+.fs-away .fs-crest { grid-column: 2; grid-row: 1 / 3; }
+.fs-away .fs-team-name { grid-column: 1; grid-row: 1; }
+.fs-away .fs-mini-stats { grid-column: 1; grid-row: 2; }
+
+.fs-crest {
+  align-self: center;
+  width: clamp(18px, 2.4em, 26px);
+  height: clamp(18px, 2.4em, 26px);
+  border-radius: 50%;
+  object-fit: contain;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.fs-crest.entity-img-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(18px, 2.4em, 26px);
+  height: clamp(18px, 2.4em, 26px);
+  font-size: 0.9em;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.fs-team-name {
+  display: block;
+  font-size: 1.35em;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fs-mini-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  font-size: 1.15em;
+  font-weight: 700;
+  color: #fff;
+}
+
+.card-icon {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.72em;
+  border-radius: 1px;
+  vertical-align: middle;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.card-yellow { background: #ffd700; }
+.card-red { background: #e74c3c; }
+
+.fs-center {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  justify-items: center;
+  gap: 0.5em;
+  min-width: 8em;
+}
+
+.fs-score-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.fs-kit {
+  width: clamp(18px, 2.2em, 26px);
+  height: clamp(18px, 2.2em, 26px);
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+.fs-score-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+  font-size: 1.75em;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-score-sep {
+  font-weight: 700;
+}
+
+.fs-minute {
+  margin-bottom: 0.1em;
+  font-size: 0.85em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  color: #fff;
+}
+
+@media (max-width: 560px) {
+  .field-scoreboard { padding: 0 1cqi 0.7cqi; }
+  .fs-card { padding: 0.45em 0.75em; }
+  .fs-main { gap: 0.6em; }
+  .fs-team-name { font-size: 1.1em; }
+  .fs-mini-stats { gap: 0.45em; font-size: 0.65em; }
+  .fs-center { min-width: 5.5em; }
+  .fs-score-value { font-size: 1.55em; gap: 0.28em; }
+  .fs-minute { font-size: 0.95em; }
+}
+
+/* ==========================================================================
+   Controls
+   ========================================================================== */
+
 .controls {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 20px; background: var(--panel); border-top: 1px solid #21262d;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 68px;
+  padding: 10px 24px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #0a0f17 0%, #101726 100%);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35);
 }
-.btn {
-  background: #21262d; border: 1px solid #30363d; color: var(--text);
-  padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
-  transition: all 0.15s; white-space: nowrap;
-}
-.btn:hover { background: #30363d; }
-.btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
-.btn.play-btn { font-size: 16px; padding: 5px 10px; min-width: 40px; text-align: center; line-height: 1; }
-.stat-bar { display: flex; gap: 20px; font-size: 11px; color: var(--dim); }
-.stat-bar .val { color: var(--text); font-weight: 600; }
 
-/* Timeline */
+.transport { display: flex; align-items: center; gap: 8px; }
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.icon-btn:hover {
+  background: var(--surface-1);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.icon-btn:active { transform: scale(0.94); }
+.icon-btn svg { width: 16px; height: 16px; }
+
+.skip-btn {
+  width: 42px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--dim);
+}
+
+.play-btn {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(120, 190, 255, 0.55);
+  background: linear-gradient(180deg, #6fc0ff, #2f8fff);
+  color: #04101f;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(47, 143, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: transform 0.12s, filter 0.15s, box-shadow 0.15s;
+}
+
+.play-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 10px 26px rgba(47, 143, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.play-btn:active { transform: translateY(0) scale(0.96); filter: brightness(0.95); }
+.play-btn svg { width: 18px; height: 18px; }
+
+.control-divider {
+  width: 1px;
+  height: 26px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.speed-group { display: flex; align-items: center; gap: 10px; }
+
+.control-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim-2);
+}
+
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border);
+}
+
+.seg-btn {
+  min-width: 38px;
+  height: 28px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.seg-btn:hover { color: var(--text); background: var(--surface-2); }
+
+.seg-btn.active {
+  color: #9bd0ff;
+  background: linear-gradient(180deg, rgba(94, 180, 255, 0.24), rgba(94, 180, 255, 0.12));
+  box-shadow: inset 0 0 0 1px rgba(94, 180, 255, 0.35), 0 0 12px rgba(47, 143, 255, 0.15);
+}
+
+.spacer { flex: 1; }
+
+.shortcut-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  color: var(--dim-2);
+  white-space: nowrap;
+}
+
+.kbd {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.hint-sep { color: rgba(255, 255, 255, 0.18); }
+
+.stat-bar { display: flex; align-items: center; gap: 22px; }
+
+.stat { display: flex; flex-direction: column; gap: 3px; min-width: 46px; }
+
+.stat-label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim-2);
+  line-height: 1;
+}
+
+.stat-value {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+
+/* ==========================================================================
+   Timeline
+   ========================================================================== */
+
 .tl-outer {
-  position: relative; height: 54px; background: #0d1117;
-  border-top: 1px solid #21262d; overflow-x: auto; overflow-y: hidden; cursor: pointer;
-  scrollbar-width: thin; scrollbar-color: #30363d #0d1117;
+  position: relative;
+  height: 82px;
+  flex-shrink: 0;
+  background: #0a0f17;
+  overflow-x: auto;
+  overflow-y: hidden;
+  cursor: pointer;
+  touch-action: none;
+  scrollbar-width: thin;
+  scrollbar-color: #2a3444 transparent;
 }
-.tl-outer::-webkit-scrollbar { height: 3px; }
-.tl-outer::-webkit-scrollbar-track { background: #0d1117; }
-.tl-outer::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
-.tl-track { position: relative; height: 100%; min-width: 100%; }
-.tl-axis { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: #21262d; }
-.tl-fill { position: absolute; bottom: 0; left: 0; height: 3px; background: var(--accent); border-radius: 0 2px 2px 0; }
-.tl-cursor { position: absolute; top: 0; bottom: 0; width: 2px; background: #f85149; z-index: 10; pointer-events: none; box-shadow: 0 0 12px rgba(248,81,73,0.6); }
-.tl-marker { position: absolute; bottom: 14px; font-size: 14px; transform: translateX(-50%); cursor: pointer; z-index: 2; opacity: 0.65; transition: all 0.15s; }
-.tl-marker:hover { opacity: 1; transform: translateX(-50%) scale(1.6); z-index: 5; }
-.tl-marker.goal-marker { font-size: 18px; bottom: 16px; opacity: 0.9; }
 
-/* Ball animations */
-@keyframes ballBounce {
-  0%,100% { transform: translateY(0); }
-  30% { transform: translateY(-8px); }
-  60% { transform: translateY(-2px); }
-  80% { transform: translateY(-7px); }
+.tl-outer::-webkit-scrollbar { height: 4px; }
+.tl-outer::-webkit-scrollbar-track { background: transparent; }
+.tl-outer::-webkit-scrollbar-thumb { background: #2a3444; border-radius: 2px; }
+
+.tl-track { position: relative; height: 100%; min-width: 100%; }
+
+.tl-ruler { position: absolute; inset: 0 0 auto 0; height: 24px; pointer-events: none; }
+
+.tl-tick { position: absolute; top: 0; height: 24px; }
+
+.tl-tick-line {
+  position: absolute;
+  top: 17px;
+  left: 0;
+  width: 1px;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tl-tick-label {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--dim-2);
+  white-space: nowrap;
+}
+
+.tl-tick:first-child .tl-tick-label { transform: none; }
+
+.tl-end-label {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--dim-2);
+}
+
+.tl-axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.tl-fill {
+  position: absolute;
+  left: 0;
+  bottom: 24px;
+  height: 3px;
+  width: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(47, 143, 255, 0.35), var(--accent));
+  box-shadow: 0 0 10px rgba(94, 180, 255, 0.35);
+}
+
+.tl-goal-band {
+  position: absolute;
+  bottom: 26px;
+  width: 2px;
+  height: 34px;
+  transform: translateX(-50%);
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 215, 0, 0), rgba(255, 215, 0, 0.55));
+}
+
+.tl-marker {
+  position: absolute;
+  bottom: 34px;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  transform: translateX(-50%);
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: rgba(10, 15, 23, 0.9);
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.75;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.tl-marker.is-home { border-color: rgba(242, 245, 250, 0.5); }
+.tl-marker.is-away { border-color: rgba(255, 212, 59, 0.55); }
+.tl-marker.is-neutral { border-color: rgba(147, 161, 181, 0.4); }
+
+.tl-marker:hover {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.5);
+  z-index: 6;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+.tl-marker.goal-marker {
+  bottom: 32px;
+  width: 22px;
+  height: 22px;
+  z-index: 4;
+  font-size: 13px;
+  opacity: 1;
+  border-color: rgba(255, 215, 0, 0.9);
+  background: rgba(38, 31, 6, 0.95);
+  box-shadow: 0 0 14px rgba(255, 215, 0, 0.45);
+}
+
+.tl-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.tl-cursor-line {
+  position: absolute;
+  top: 0;
+  bottom: 22px;
+  left: -1px;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(94, 180, 255, 0.15), var(--accent));
+  box-shadow: 0 0 12px rgba(94, 180, 255, 0.5);
+}
+
+.tl-cursor-line::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateX(-50%);
+  box-shadow: 0 0 10px var(--accent);
+}
+
+.tl-cursor-label {
+  position: absolute;
+  bottom: 3px;
+  left: 0;
+  transform: translateX(-50%);
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: #03101f;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(94, 180, 255, 0.35);
+}
+
+.tl-tooltip {
+  position: absolute;
+  z-index: 12;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.tl-tooltip.is-home { bottom: 60px; }
+.tl-tooltip.is-away { top: 56px; }
+.tl-tooltip.is-neutral { bottom: 60px; }
+
+.tl-tooltip-inner {
+  padding: 4px 8px;
+  line-height: 1.15;
+  border-radius: 9px;
+  background: rgba(9, 14, 22, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tl-tooltip-team {
+  margin-bottom: 0;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim-2);
+}
+
+.tl-tooltip.is-home .tl-tooltip-team { color: var(--home); }
+.tl-tooltip.is-away .tl-tooltip-team { color: var(--away); }
+
+.tl-tooltip-event {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.tl-tooltip-icon { font-size: 11px; line-height: 1; }
+.tl-tooltip-minute { margin-top: 0; font-size: 8.5px; color: var(--accent); font-weight: 700; }
+/* PG sits on its own row at the bottom. */
+.tl-tooltip-player-row {
+  margin-top: 1px;
+  font-size: 9.5px;
+  color: var(--dim);
+}
+
+/* ==========================================================================
+   Ball animations
+   ========================================================================== */
+
+@keyframes ballSpin {
+  0% { transform: translateY(-10px) rotate(0deg); }
+  100% { transform: translateY(-10px) rotate(360deg); }
 }
 @keyframes shadowPulse {
-  0%,100% { transform: scale(1); opacity: 0.35; }
+  0%, 100% { transform: scale(1); opacity: 0.35; }
   30% { transform: scale(0.45); opacity: 0.1; }
   60% { transform: scale(0.85); opacity: 0.25; }
   80% { transform: scale(0.5); opacity: 0.12; }
 }
 @keyframes shadowPulse2 {
-  0%,100% { transform: scale(1); opacity: 0.25; }
+  0%, 100% { transform: scale(1); opacity: 0.25; }
   30% { transform: scale(0.4); opacity: 0.06; }
   60% { transform: scale(0.8); opacity: 0.18; }
   80% { transform: scale(0.45); opacity: 0.08; }
 }
-.ball-bounce { animation: ballBounce 2.2s ease-in-out infinite; }
+.ball-spin { animation: ballSpin 2.2s linear infinite; }
 .shadow-pulse { animation: shadowPulse 2.2s ease-in-out infinite; transform-origin: 0px 8px; }
 .shadow-pulse2 { animation: shadowPulse2 2.2s ease-in-out infinite; transform-origin: 0px 5px; }
 
+/* 纯装饰的无限循环动画在减少动态效果下直接停掉：球位/比分等数据仍照常更新。
+   必须放在上面这些 animation 定义之后：同优先级下后声明的规则才能覆盖。 */
+@media (prefers-reduced-motion: reduce) {
+  .ball-spin,
+  .shadow-pulse,
+  .shadow-pulse2 {
+    animation: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   装饰性循环动画的节能暂停（画面无可见差异）
+   - is-break: 半场/终场统计遮罩把整块球场虚化，底下的皮球动画继续运行只会让
+     模糊层每帧重新光栅化；暂停后画面一致，GPU/电量明显下降。
+     （LED 跑马灯由 BoardMarqueeLayer 的 paused prop 停表，不走 CSS。）
+   - page-hidden: 页面切到后台时显式暂停，浏览器不一定会停掉这些动画。
+   - ball-group.is-hidden: 皮球被隐藏（无位置/非运动事件）时不渲染旋转与阴影。
+   -------------------------------------------------------------------------- */
+.field-wrap.is-break .ball-spin,
+.field-wrap.is-break .shadow-pulse,
+.field-wrap.is-break .shadow-pulse2,
+html.page-hidden .ball-spin,
+html.page-hidden .shadow-pulse,
+html.page-hidden .shadow-pulse2,
+.ball-group.is-hidden .ball-spin,
+.ball-group.is-hidden .shadow-pulse,
+.ball-group.is-hidden .shadow-pulse2 {
+  animation-play-state: paused;
+}
+
+/* ==========================================================================
+   Entity fallback / loading / error
+   ========================================================================== */
+
+.entity-img-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #21262d;
+  color: var(--dim);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.competition-logo.entity-img-fallback { font-size: 9px; }
+
+.loading,
+.loading-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+}
+
 .loading {
-  display: flex; align-items: center; justify-content: center;
-  height: 100%; color: var(--dim); font-size: 18px;
+  height: 100%;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 50% 45%, #101a29 0%, var(--bg-deep) 68%);
+}
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: rgba(6, 9, 14, 0.84);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-spinner {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 8px;
+}
+
+.loading-spinner svg {
+  position: absolute;
+  inset: 13px;
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+
+.loading-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(94, 180, 255, 0.14);
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+  box-shadow: 0 0 26px rgba(94, 180, 255, 0.2);
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.loading-detail {
+  max-width: 340px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-align: center;
+  color: var(--dim-2);
+}
+
+.screen-message {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 45%, #101a29 0%, var(--bg-deep) 68%);
+}
+
+.screen-message-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+  border-radius: 13px;
+  border: 1px solid rgba(255, 90, 95, 0.3);
+  background: rgba(255, 90, 95, 0.1);
+  color: var(--danger);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.screen-message h1 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.screen-message p {
+  max-width: 420px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--dim);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+
+.btn:hover {
+  background: var(--surface-2);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.btn:active { transform: translateY(0) scale(0.97); }
+
+.btn-primary {
+  border-color: rgba(94, 180, 255, 0.45);
+  background: linear-gradient(180deg, rgba(94, 180, 255, 0.22), rgba(94, 180, 255, 0.1));
+  color: var(--accent);
+  box-shadow: 0 0 16px rgba(47, 143, 255, 0.12);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(180deg, rgba(94, 180, 255, 0.3), rgba(94, 180, 255, 0.16));
+  border-color: rgba(94, 180, 255, 0.6);
+  box-shadow: 0 0 22px rgba(47, 143, 255, 0.22);
 }
 
 .error-boundary {
-  padding: 64px 16px; max-width: 1200px; margin: 0 auto;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 64px 16px;
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 1120px) {
+  .shortcut-hint { display: none; }
+}
+
+@media (max-width: 860px) {
+  .controls { gap: 12px; padding: 8px 14px; }
+  .speed-group .control-label { display: none; }
+  .stat-bar { gap: 14px; }
+  .stat { min-width: 38px; }
+}
+
+@media (max-width: 480px) {
+  .tl-end-label { display: none; }
+  .tl-tick-label { font-size: 8px; }
+}
+
+/* ==========================================================================
+   Event animation demo (/event-demo)
+   ========================================================================== */
+
+.event-demo {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-deep);
+}
+
+.ed-sidebar {
+  width: 372px;
+  flex: none;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+.ed-head {
+  padding: 18px 18px 12px;
+}
+
+.ed-head h1 {
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.ed-head p {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--dim-2);
+}
+
+.ed-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 18px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ed-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ed-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim-2);
+}
+
+.ed-seg {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+}
+
+.ed-seg button {
+  padding: 6px 13px;
+  border: 0;
+  background: transparent;
+  color: var(--dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ed-seg button + button { border-left: 1px solid var(--border); }
+.ed-seg button.active { background: var(--accent-soft); color: var(--accent); }
+.ed-seg button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ed-neutral {
+  font-size: 10px;
+  color: var(--dim-2);
+}
+
+.ed-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.ed-check input {
+  accent-color: var(--accent-strong);
+}
+
+.ed-replay {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ed-replay:hover { background: var(--surface-3); }
+
+.ed-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 10px 24px;
+}
+
+.ed-list section + section { margin-top: 2px; }
+
+.ed-list h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 8px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim-2);
+}
+
+.ed-list h2 span {
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.ed-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ed-item:hover { background: var(--surface-1); }
+
+.ed-item.active {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.ed-item-icon {
+  width: 22px;
+  flex: none;
+  text-align: center;
+  font-size: 14px;
+}
+
+.ed-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ed-item-title {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.ed-item-sub {
+  overflow: hidden;
+  font-size: 10px;
+  color: var(--dim-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ed-item-code {
+  flex: none;
+  font-size: 10px;
+  color: var(--dim-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.ed-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ed-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-height: 58px;
+  padding: 10px 18px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.ed-info-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  min-width: 0;
+}
+
+.ed-info-en {
+  font-size: 11px;
+  color: var(--dim-2);
+}
+
+.ed-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--dim);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ed-meta {
+  display: flex;
+  gap: 16px;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--dim-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.ed-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.ed-hint {
+  min-height: 34px;
+  padding: 8px 18px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  color: var(--dim-2);
+  font-size: 11px;
+}
+
+@media (max-width: 860px) {
+  /* Stage first: a full-width sidebar stacked on top used to squeeze the
+     pitch to a couple hundred pixels on phones. */
+  .event-demo { flex-direction: column-reverse; }
+
+  .ed-sidebar {
+    width: 100%;
+    max-height: 42vh;
+    border-right: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .ed-head { padding: 10px 14px 6px; }
+  .ed-controls { padding: 0 14px 8px; }
+  .ed-list { padding: 4px 8px 16px; }
+
+  .ed-main { min-height: 0; flex: 1 1 auto; }
+  .ed-info { min-height: 0; padding: 6px 14px; gap: 8px; }
+  .ed-info-title { font-size: 13px; }
+  .ed-info-en, .ed-meta { display: none; }
+  .ed-hint { display: none; }
+}
+
+/* Portrait phones/tablets: a 16:9 pitch can't use the extra height, so size
+   the stage to the pitch instead of 58vh and give the freed space to the
+   event list. Avoids a tall empty band above and below the field. */
+@media (max-width: 860px) and (orientation: portrait) {
+  .ed-main { flex: 0 0 auto; }
+  .ed-stage { flex: none; height: calc(100vw * 182 / 322 + 12px); }
+  .ed-stage .field-scene { height: 100%; }
+  .ed-sidebar { flex: 1 1 auto; max-height: none; }
+}
+
+/* Landscape phones (max-height, not max-width: an 844×390 viewport is wider
+   than the 860px breakpoint but the stage is height-starved). Keep the picker
+   as a narrow rail so the pitch can use the full height. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .event-demo { flex-direction: row; }
+
+  .ed-sidebar {
+    width: min(30vw, 260px);
+    height: 100%;
+    max-height: none;
+    border-top: 0;
+    border-right: 1px solid var(--border);
+  }
+
+  .ed-head { padding: 8px 12px 4px; }
+  .ed-head h1 { font-size: 15px; }
+  .ed-head p { display: none; }
+  .ed-controls { padding: 0 12px 8px; gap: 6px; }
+  .ed-seg button { padding: 4px 10px; }
+  .ed-list { padding: 2px 6px 12px; }
+  .ed-item { padding: 5px 6px; }
+  .ed-item-sub, .ed-item-code { display: none; }
+
+  .ed-main { height: 100%; }
+  .ed-info { min-height: 0; padding: 5px 12px; }
+  .ed-info-title { font-size: 13px; }
+  .ed-hint { display: none; }
 }

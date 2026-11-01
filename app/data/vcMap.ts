@@ -3,91 +3,131 @@ export interface VCEntry {
   zh: string;
   cat: string;
   icon: string;
-  team?: string;
+  team: 'home' | 'away' | 'neutral';
 }
 
+/**
+ * 4 位基础事件码表。
+ *
+ * 1xBet live feed 的球队事件 VC 格式为：
+ *   1xxxx = 主队事件
+ *   2xxxx = 客队事件
+ * 后 4 位就是基础码；全场/中立事件直接使用 4 位码（如 1015 半场结束、1330 VAR）。
+ */
 export const VC: Record<number, VCEntry> = {
-  1003:{en:"Goal",zh:"进球",cat:"GOAL",icon:"⚽"},
-  1004:{en:"Corner",zh:"角球",cat:"CORNER",icon:"🚩"},
-  1005:{en:"Yellow Card",zh:"黄牌",cat:"YELLOW_CARD",icon:"🟨"},
-  1009:{en:"Direct Free Kick",zh:"直接任意球",cat:"FREE_KICK",icon:"🎯"},
-  1010:{en:"Simple Free Kick",zh:"任意球",cat:"FREE_KICK",icon:"🎯"},
-  1014:{en:"Kick Off",zh:"开球",cat:"MATCH_PHASE",icon:"🔄"},
-  1015:{en:"Half Time",zh:"半场结束",cat:"MATCH_PHASE",icon:"⏸"},
-  1016:{en:"2nd Half",zh:"下半场",cat:"MATCH_PHASE",icon:"▶"},
-  1017:{en:"Full Time",zh:"比赛结束",cat:"MATCH_PHASE",icon:"🏁"},
-  1022:{en:"Penalty Shootout",zh:"点球大战",cat:"PENALTY",icon:"🎯"},
-  1023:{en:"Penalty Missed",zh:"点球射失",cat:"PENALTY",icon:"❌"},
-  1025:{en:"Injury",zh:"伤病",cat:"INJURY",icon:"🤕"},
-  1026:{en:"Injury Time",zh:"伤停补时",cat:"INJURY",icon:"⏱"},
-  1234:{en:"Offside",zh:"越位",cat:"OFFSIDE",icon:"🏳"},
-  1236:{en:"Clearance",zh:"解围",cat:"OTHER",icon:"⛳"},
-  1237:{en:"Zoned Throw",zh:"区域界外球",cat:"OTHER",icon:"🔄"},
-  1238:{en:"Substitution",zh:"换人",cat:"SUBSTITUTION",icon:"🔄"},
-  1330:{en:"VAR",zh:"VAR进行中",cat:"VAR",icon:"📺"},
-  1331:{en:"VAR Red Card",zh:"VAR审核红牌",cat:"VAR",icon:"📺"},
-  1332:{en:"VAR Goal",zh:"VAR审核进球",cat:"VAR",icon:"📺"},
-  1333:{en:"VAR Penalty",zh:"VAR审核点球",cat:"VAR",icon:"📺"},
-  2000:{en:"Match Event",zh:"比赛事件",cat:"OTHER",icon:"📌"},
-  13211:{en:"Match Event",zh:"比赛事件",cat:"OTHER",icon:"📌",team:"home"},
-  // Home
-  11000:{en:"Home DA",zh:"主队危险进攻",cat:"ATTACK",icon:"🔴",team:"home"},
-  11001:{en:"Home Attack",zh:"主队进攻",cat:"ATTACK",icon:"🔴",team:"home"},
-  11002:{en:"Home Possession",zh:"主队控球",cat:"POSSESSION",icon:"●",team:"home"},
-  11003:{en:"Home Goal",zh:"主队进球!",cat:"GOAL",icon:"⚽",team:"home"},
-  11004:{en:"Home Corner",zh:"主队角球",cat:"CORNER",icon:"🚩",team:"home"},
-  11005:{en:"Home Yellow Card",zh:"主队黄牌",cat:"YELLOW_CARD",icon:"🟨",team:"home"},
-  11006:{en:"Home Red Card",zh:"主队红牌",cat:"RED_CARD",icon:"🟥",team:"home"},
-  11007:{en:"Home Goal Kick",zh:"主队球门球",cat:"OTHER",icon:"🥅",team:"home"},
-  11008:{en:"Home Penalty",zh:"主队点球",cat:"PENALTY",icon:"🎯",team:"home"},
-  11009:{en:"Home Direct FK",zh:"主队直接任意球",cat:"FREE_KICK",icon:"🎯",team:"home"},
-  11010:{en:"Home Simple FK",zh:"主队任意球",cat:"FREE_KICK",icon:"🎯",team:"home"},
-  11011:{en:"Home Shot on Goal",zh:"主队射正",cat:"SHOT",icon:"🎯",team:"home"},
-  11012:{en:"Home Shot off Goal",zh:"主队射偏",cat:"SHOT",icon:"⬆",team:"home"},
-  11013:{en:"Home Sub",zh:"主队换人",cat:"SUBSTITUTION",icon:"🔄",team:"home"},
-  11014:{en:"Home Kickoff",zh:"主队开球",cat:"MATCH_PHASE",icon:"🔄",team:"home"},
-  11016:{en:"Home 2nd Half",zh:"主队下半场",cat:"MATCH_PHASE",icon:"▶",team:"home"},
-  11023:{en:"Home Penalty Miss",zh:"主队点球射失",cat:"PENALTY",icon:"❌",team:"home"},
-  11024:{en:"Home Throw",zh:"主队界外球",cat:"OTHER",icon:"🔄",team:"home"},
-  11025:{en:"Home Injury",zh:"主队伤病",cat:"INJURY",icon:"🤕",team:"home"},
-  11026:{en:"Home Injury Time",zh:"主队伤停补时",cat:"INJURY",icon:"⏱",team:"home"},
-  11234:{en:"Home Offside",zh:"主队越位",cat:"OFFSIDE",icon:"🏳",team:"home"},
-  11236:{en:"Home Clearance",zh:"主队解围",cat:"OTHER",icon:"⛳",team:"home"},
-  11237:{en:"Home Zoned Throw",zh:"主队区域界外球",cat:"OTHER",icon:"🔄",team:"home"},
-  11300:{en:"Home Take-On DA",zh:"主队带球危险进攻",cat:"ATTACK",icon:"🔴",team:"home"},
-  11301:{en:"Home Take-On Attack",zh:"主队带球进攻",cat:"ATTACK",icon:"🔴",team:"home"},
-  11302:{en:"Home Take-On Safe",zh:"主队安全控球",cat:"POSSESSION",icon:"●",team:"home"},
-  // Away
-  21000:{en:"Away DA",zh:"客队危险进攻",cat:"ATTACK",icon:"🔵",team:"away"},
-  21001:{en:"Away Attack",zh:"客队进攻",cat:"ATTACK",icon:"🔵",team:"away"},
-  21002:{en:"Away Possession",zh:"客队控球",cat:"POSSESSION",icon:"●",team:"away"},
-  21003:{en:"Away Goal",zh:"客队进球!",cat:"GOAL",icon:"⚽",team:"away"},
-  21004:{en:"Away Corner",zh:"客队角球",cat:"CORNER",icon:"🚩",team:"away"},
-  21005:{en:"Away Yellow Card",zh:"客队黄牌",cat:"YELLOW_CARD",icon:"🟨",team:"away"},
-  21006:{en:"Away Red Card",zh:"客队红牌",cat:"RED_CARD",icon:"🟥",team:"away"},
-  21007:{en:"Away Goal Kick",zh:"客队球门球",cat:"OTHER",icon:"🥅",team:"away"},
-  21008:{en:"Away Penalty",zh:"客队点球",cat:"PENALTY",icon:"🎯",team:"away"},
-  21009:{en:"Away Direct FK",zh:"客队直接任意球",cat:"FREE_KICK",icon:"🎯",team:"away"},
-  21010:{en:"Away Simple FK",zh:"客队任意球",cat:"FREE_KICK",icon:"🎯",team:"away"},
-  21011:{en:"Away Shot on Goal",zh:"客队射正",cat:"SHOT",icon:"🎯",team:"away"},
-  21012:{en:"Away Shot off Goal",zh:"客队射偏",cat:"SHOT",icon:"⬆",team:"away"},
-  21013:{en:"Away Sub",zh:"客队换人",cat:"SUBSTITUTION",icon:"🔄",team:"away"},
-  21014:{en:"Away Kickoff",zh:"客队开球",cat:"MATCH_PHASE",icon:"🔄",team:"away"},
-  21016:{en:"Away 2nd Half",zh:"客队下半场",cat:"MATCH_PHASE",icon:"▶",team:"away"},
-  21023:{en:"Away Penalty Miss",zh:"客队点球射失",cat:"PENALTY",icon:"❌",team:"away"},
-  21024:{en:"Away Throw",zh:"客队界外球",cat:"OTHER",icon:"🔄",team:"away"},
-  21025:{en:"Away Injury",zh:"客队伤病",cat:"INJURY",icon:"🤕",team:"away"},
-  21026:{en:"Away Injury Time",zh:"客队伤停补时",cat:"INJURY",icon:"⏱",team:"away"},
-  21234:{en:"Away Offside",zh:"客队越位",cat:"OFFSIDE",icon:"🏳",team:"away"},
-  21236:{en:"Away Clearance",zh:"客队解围",cat:"OTHER",icon:"⛳",team:"away"},
-  21237:{en:"Away Zoned Throw",zh:"客队区域界外球",cat:"OTHER",icon:"🔄",team:"away"},
-  21300:{en:"Away Take-On DA",zh:"客队带球危险进攻",cat:"ATTACK",icon:"🔵",team:"away"},
-  21301:{en:"Away Take-On Attack",zh:"客队带球进攻",cat:"ATTACK",icon:"🔵",team:"away"},
-  21302:{en:"Away Take-On Safe",zh:"客队安全控球",cat:"POSSESSION",icon:"●",team:"away"},
+  // 点球相关（部分 feed 使用 10008/10009/10021 这类前导零格式）
+  8: { en: 'Penalty Scored', zh: '点球命中', cat: 'PENALTY', icon: '⚽', team: 'neutral' },
+  9: { en: 'Penalty Missed', zh: '点球射失', cat: 'PENALTY', icon: '❌', team: 'neutral' },
+  21: { en: 'Penalty To Take', zh: '即将罚点球', cat: 'PENALTY', icon: '🎯', team: 'neutral' },
+
+  // 进攻 / 控球 / 危险进攻（球队相关）
+  1000: { en: 'Dangerous Attack', zh: '危险进攻', cat: 'ATTACK', icon: '🔴', team: 'neutral' },
+  1001: { en: 'Attack', zh: '进攻', cat: 'ATTACK', icon: '🔴', team: 'neutral' },
+  1002: { en: 'Possession', zh: '控球', cat: 'POSSESSION', icon: '●', team: 'neutral' },
+  1300: { en: 'Take-On Dangerous Attack', zh: '带球危险进攻', cat: 'ATTACK', icon: '🔴', team: 'neutral' },
+  1301: { en: 'Take-On Attack', zh: '带球进攻', cat: 'ATTACK', icon: '🔴', team: 'neutral' },
+  1302: { en: 'Take-On Safe', zh: '安全控球', cat: 'POSSESSION', icon: '●', team: 'neutral' },
+
+  // 射门 / 进球（球队相关）
+  1003: { en: 'Goal', zh: '进球', cat: 'GOAL', icon: '⚽', team: 'neutral' },
+  // 官方表：11008/21008 = Home/Away Team Penalty → 基础码 1008 是点球，不是射正
+  1008: { en: 'Penalty', zh: '点球', cat: 'PENALTY', icon: '🎯', team: 'neutral' },
+  1011: { en: 'Shot on Goal', zh: '射正', cat: 'SHOT', icon: '🎯', team: 'neutral' },
+  1012: { en: 'Shot off Goal', zh: '射偏', cat: 'SHOT', icon: '⬆', team: 'neutral' },
+  1242: { en: 'Disallowed Goal', zh: '进球无效', cat: 'VAR', icon: '📺', team: 'neutral' },
+
+  // 定位球 / 死球（球队相关）
+  1004: { en: 'Corner', zh: '角球', cat: 'CORNER', icon: '🚩', team: 'neutral' },
+  1239: { en: 'Corner', zh: '角球', cat: 'CORNER', icon: '🚩', team: 'neutral' },
+  3211: { en: 'Corner', zh: '角球', cat: 'CORNER', icon: '🚩', team: 'neutral' },
+  1007: { en: 'Goal Kick', zh: '球门球', cat: 'OTHER', icon: '🥅', team: 'neutral' },
+  1009: { en: 'Direct Free Kick', zh: '直接任意球', cat: 'FREE_KICK', icon: '🎯', team: 'neutral' },
+  1010: { en: 'Free Kick', zh: '任意球', cat: 'FREE_KICK', icon: '🎯', team: 'neutral' },
+  // 对照 1xbet 客户端 live.js：case 1236 → freekick（不是解围）
+  1236: { en: 'Free Kick', zh: '任意球', cat: 'FREE_KICK', icon: '🎯', team: 'neutral' },
+  1024: { en: 'Throw In', zh: '界外球', cat: 'OTHER', icon: '🔄', team: 'neutral' },
+  1237: { en: 'Zoned Throw', zh: '区域界外球', cat: 'OTHER', icon: '🔄', team: 'neutral' },
+  1233: { en: 'Match Info', zh: '比赛信息', cat: 'MATCH_PHASE', icon: '📋', team: 'neutral' },
+  1234: { en: 'Offside', zh: '越位', cat: 'OFFSIDE', icon: '🏳', team: 'neutral' },
+
+  // 纪律 / 换人（球队相关）
+  1005: { en: 'Yellow Card', zh: '黄牌', cat: 'YELLOW_CARD', icon: '🟨', team: 'neutral' },
+  1006: { en: 'Red Card', zh: '红牌', cat: 'RED_CARD', icon: '🟥', team: 'neutral' },
+  1013: { en: 'Substitution', zh: '换人', cat: 'SUBSTITUTION', icon: '🔄', team: 'neutral' },
+  1238: { en: 'Substitution', zh: '换人', cat: 'SUBSTITUTION', icon: '🔄', team: 'neutral' },
+
+  // 比赛阶段 / 全场事件（中立）
+  1014: { en: 'Kick Off', zh: '开球', cat: 'MATCH_PHASE', icon: '🔄', team: 'neutral' },
+  1015: { en: 'Half Time', zh: '半场结束', cat: 'MATCH_PHASE', icon: '⏸', team: 'neutral' },
+  1016: { en: '2nd Half', zh: '下半场', cat: 'MATCH_PHASE', icon: '▶', team: 'neutral' },
+  1017: { en: 'Full Time', zh: '比赛结束', cat: 'MATCH_PHASE', icon: '🏁', team: 'neutral' },
+  1018: { en: 'Kick Off Extra Time', zh: '加时开球', cat: 'MATCH_PHASE', icon: '🔄', team: 'neutral' },
+  1019: { en: 'Extra Time Half Time', zh: '加时中场', cat: 'MATCH_PHASE', icon: '⏸', team: 'neutral' },
+  1020: { en: 'Kick Off 2nd Extra Time', zh: '加时下半场', cat: 'MATCH_PHASE', icon: '▶', team: 'neutral' },
+  1021: { en: 'End of Extra Time', zh: '加时结束', cat: 'MATCH_PHASE', icon: '🏁', team: 'neutral' },
+  1022: { en: 'Penalty Shootout', zh: '点球大战', cat: 'PENALTY', icon: '🎯', team: 'neutral' },
+  1023: { en: 'Penalty Missed', zh: '点球射失', cat: 'PENALTY', icon: '❌', team: 'neutral' },
+  1025: { en: 'Injury', zh: '伤病', cat: 'INJURY', icon: '🤕', team: 'neutral' },
+  1026: { en: 'Injury Time', zh: '伤停补时', cat: 'INJURY', icon: '⏱', team: 'neutral' },
+  // live.js: case 2000 → endofmatch；LiveTracker 也把它当终场处理
+  2000: { en: 'End of Match', zh: '比赛结束', cat: 'MATCH_PHASE', icon: '🏁', team: 'neutral' },
+
+  // VAR（中立）
+  1325: { en: 'VAR', zh: 'VAR', cat: 'VAR', icon: '📺', team: 'neutral' },
+  1330: { en: 'VAR In Progress', zh: 'VAR进行中', cat: 'VAR', icon: '📺', team: 'neutral' },
+  1331: { en: 'VAR Red Card', zh: 'VAR审核红牌', cat: 'VAR', icon: '📺', team: 'neutral' },
+  1332: { en: 'VAR Goal', zh: 'VAR审核进球', cat: 'VAR', icon: '📺', team: 'neutral' },
+  1333: { en: 'VAR Penalty', zh: 'VAR审核点球', cat: 'VAR', icon: '📺', team: 'neutral' },
+  // bet365.js: 1334 = PossibleGoal（可能进球），1345–1350 = VarCheck（VAR 审核）
+  1334: { en: 'Possible Goal', zh: '可能进球', cat: 'VAR', icon: '📺', team: 'neutral' },
+  1345: { en: 'VAR Check', zh: 'VAR审核', cat: 'VAR', icon: '📺', team: 'neutral' },
+  1346: { en: 'VAR Check', zh: 'VAR审核', cat: 'VAR', icon: '📺', team: 'neutral' },
+  1347: { en: 'VAR Check', zh: 'VAR审核', cat: 'VAR', icon: '📺', team: 'neutral' },
+  1348: { en: 'VAR Check', zh: 'VAR审核', cat: 'VAR', icon: '📺', team: 'neutral' },
+  1349: { en: 'VAR Check', zh: 'VAR审核', cat: 'VAR', icon: '📺', team: 'neutral' },
+  1350: { en: 'VAR Check', zh: 'VAR审核', cat: 'VAR', icon: '📺', team: 'neutral' },
+
+  // bet365.js: 1357 = SoccerEarlyPayout（提前派彩，仅在结算时下发）
+  1357: { en: 'Early Payout', zh: '提前派彩', cat: 'OTHER', icon: '💰', team: 'neutral' },
 };
 
-export const POSS_CODES = new Set([11002,21002,11001,21001,11000,21000,11300,21300,11301,21301,11302,21302]);
-
-export function vcInfo(code: number): VCEntry {
-  return VC[code] || {en:`Event ${code}`,zh:`事件${code}`,cat:"OTHER",icon:"📌",team:code>=21000?"away":code>=11000?"home":"neutral"};
+/** 从 VC 中提取 4 位基础码。 */
+export function vcBase(vc: number): number {
+  if (vc > 9999) {
+    return Number(String(vc).substring(1));
+  }
+  return vc;
 }
+
+/** 从 VC 前缀判断球队。 */
+export function vcTeam(vc: number): 'home' | 'away' | 'neutral' {
+  const s = String(vc);
+  if (s.length >= 5 && (s[0] === '1' || s[0] === '2')) {
+    return s[0] === '1' ? 'home' : 'away';
+  }
+  return 'neutral';
+}
+
+/** 获取事件描述，team 字段由 VC 前缀实时决定。 */
+export function vcInfo(vc: number): VCEntry {
+  const base = vcBase(vc);
+  const entry = VC[base];
+  if (entry) {
+    return { ...entry, team: vcTeam(vc) };
+  }
+  return {
+    en: `Event ${vc}`,
+    zh: `事件${vc}`,
+    cat: 'OTHER',
+    icon: '📌',
+    team: vcTeam(vc),
+  };
+}
+
+/** 球队相关的事件分类集合（均已转为基础码）。 */
+export const DA_CODES = new Set([1000, 1300]);
+export const ATTACK_CODES = new Set([1001, 1301]);
+export const POSS_CODES = new Set([1000, 1300, 1001, 1301, 1002, 1302]);
+export const GK_CODES = new Set([1007]);
+export const THROW_CODES = new Set([1024, 1237]);
+export const DIRECT_FK_CODES = new Set([1009]);
