@@ -31,13 +31,16 @@ interface WsMessage {
   matchTimeMs?: number;
   /** 比赛时钟是否在走表（服务端合并后的 TT 状态） */
   clockRunning?: boolean;
+  /** 服务端确认当前比赛不在实时推送中，没有实时动画数据 */
+  noTracker?: boolean;
 }
 
 type Phase = 'loading' | 'not-found' | 'connecting' | 'live' | 'no-tracker' | 'error';
 
 /** How long to wait for the first WS message before falling back to the
- *  static board. The backend sends a snapshot immediately for tracked
- *  matches, so silence means there is no tracking feed. */
+ *  static board. The backend answers every subscribe immediately — a snapshot
+ *  for tracked matches, `noTracker: true` otherwise — so this only covers
+ *  older backends and lost frames. */
 const SNAPSHOT_GRACE_MS = 8_000;
 
 function adaptMessage(msg: WsMessage): RawEvent[] {
@@ -153,8 +156,8 @@ export default function LiveTrackerRoute() {
       }
     };
 
-    // The backend sends nothing at all for matches without tracking data, so
-    // silence after subscribing is the signal to show the static board.
+    // Older backends send nothing for matches without tracking data, so
+    // silence after subscribing is still the fallback signal.
     const armGraceTimer = () => {
       clearGraceTimer();
       graceTimer = setTimeout(() => {
@@ -164,7 +167,18 @@ export default function LiveTrackerRoute() {
     };
 
     ws.onMessage = (rawEvent: unknown) => {
-      const events = adaptMessage(rawEvent as WsMessage);
+      const message = rawEvent as WsMessage;
+      // 服务端明确告知没有实时动画数据：立即切到静态看板，不用等超时。
+      // 若已收到真实事件（noTracker 与首条事件存在竞态）则忽略该标记，
+      // 实时事件优先。
+      if (message?.noTracker === true) {
+        clearGraceTimer();
+        if (!received && !cancelled) {
+          setPhase(infoFound ? 'no-tracker' : 'error');
+        }
+        return;
+      }
+      const events = adaptMessage(message);
       if (events.length === 0) return;
       received = true;
       clearGraceTimer();

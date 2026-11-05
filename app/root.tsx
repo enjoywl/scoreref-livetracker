@@ -5,6 +5,7 @@ import {
 	Outlet,
 	Scripts,
 	ScrollRestoration,
+	useLocation,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -12,6 +13,12 @@ import SiteFooter from "./components/SiteFooter";
 import "./app.css";
 
 export function Layout({ children }: { children: React.ReactNode }) {
+	// Embedded mode: the match detail page frames this app, and its own footer
+	// links (home / event demo / kit preview) do not belong inside the pitch
+	// card. The parent adds `?embed=1`; everything else keeps the site chrome.
+	const location = useLocation();
+	const isEmbedded = new URLSearchParams(location.search).get("embed") === "1";
+
 	return (
 		<html lang="en">
 			<head>
@@ -24,7 +31,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			</head>
 			<body>
 				<div className="site-main">{children}</div>
-				<SiteFooter />
+				{!isEmbedded && <SiteFooter />}
 				<ScrollRestoration />
 				<Scripts />
 			</body>
