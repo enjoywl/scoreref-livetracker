@@ -1,7 +1,5 @@
-# 由 nginx 官方镜像 entrypoint 在启动时 envsubst 渲染：
-# /etc/nginx/templates/*.template -> /etc/nginx/conf.d/*.conf
-# 只有真实存在的环境变量会被替换（${WS_UPSTREAM}），$uri/$http_upgrade 等
-# nginx 变量保持原样。
+# 由 nginx 官方镜像 entrypoint 在启动时 envsubst 渲染。
+# 纯静态托管；/v1/soccer/ws 的 WebSocket 反代已上移到边缘 Caddy，这里不再处理。
 
 server {
     listen 80;
@@ -10,7 +8,6 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # 前端只在构建时生成一次，开启压缩收益明显。
     gzip on;
     gzip_comp_level 5;
     gzip_min_length 1024;
@@ -23,35 +20,20 @@ server {
         return 200 "ok\n";
     }
 
-    # 带 hash 的构建产物可以长期缓存。
-    location /assets/ {
+    # 挂在 /livetracker/ 子路径下：构建产物引用 /livetracker/assets/...，
+    # 磁盘上仍是 assets/...，这里把前缀剥离后映射回文件。
+    location /livetracker/assets/ {
+        rewrite ^/livetracker(/.*)$ $1 break;
         add_header Cache-Control "public, max-age=31536000, immutable";
         try_files $uri =404;
     }
 
-    # 与 Workers 版 workers/app.ts 一致：前端同源连 /v1/soccer/ws，
-    # 这里转发到 hypersports-ws-service 的 STOMP 端点 /ws。
-    location = /v1/soccer/ws {
-        proxy_pass ${WS_UPSTREAM}/ws;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        # ws-service 生产环境按 Origin 白名单校验握手（默认只放行
-        # https://www.hypersports.com），直接通过 IP:端口访问会被 403。
-        # 这里统一改写成白名单内的来源；需要别的值时用 WS_ORIGIN 覆盖。
-        proxy_set_header Origin ${WS_ORIGIN};
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # STOMP 长连接：不要缓冲，也不要 60s 就断开。
-        proxy_buffering off;
-        proxy_read_timeout 3600s;
-        proxy_send_timeout 3600s;
+    location /livetracker/ {
+        rewrite ^/livetracker(/.*)$ $1 break;
+        try_files $uri $uri/ /index.html;
     }
 
-    # SPA：/livetracker/:matchId 等路由直接刷新时回落到 index.html。
+    # 兜底：直接访问根时也回落到 SPA
     location / {
         try_files $uri $uri/ /index.html;
     }

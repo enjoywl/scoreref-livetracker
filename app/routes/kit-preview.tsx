@@ -72,7 +72,7 @@ export default function KitPreview() {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        minHeight: '100%',
         padding: '32px clamp(16px, 4vw, 48px)',
         background: '#12151c',
         color: '#e8ecf4',

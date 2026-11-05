@@ -62,6 +62,55 @@ button { font-family: inherit; }
 }
 
 /* ==========================================================================
+   Site chrome
+   ========================================================================== */
+
+/* The page fills the row above the footer; full-height screens therefore
+   shrink by the footer's height instead of being covered by it. */
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+.site-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.site-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
+  padding: 0 clamp(14px, 3vw, 28px);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--dim-2);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.site-footer-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.site-footer-nav a {
+  color: var(--dim);
+  text-decoration: none;
+}
+
+.site-footer-nav a:hover {
+  color: var(--accent);
+}
+
+/* ==========================================================================
    Field
    ========================================================================== */
 
@@ -1458,7 +1507,7 @@ html.page-hidden .shadow-pulse2,
 
 .loading {
   height: 100%;
-  min-height: 100vh;
+  min-height: 100%;
   background: radial-gradient(ellipse at 50% 45%, #101a29 0%, var(--bg-deep) 68%);
 }
 
@@ -1522,7 +1571,7 @@ html.page-hidden .shadow-pulse2,
 }
 
 .screen-message {
-  min-height: 100vh;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;

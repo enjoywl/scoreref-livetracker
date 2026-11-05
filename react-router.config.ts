@@ -5,6 +5,8 @@ import type { Config } from "@react-router/dev/config";
 const staticBuild = process.env.BUILD_TARGET === "static";
 
 export default {
+	// 挂在 www.scoreref.com 的 /livetracker/ 子路径（与 vite base 一致）
+	basename: "/livetracker",
 	ssr: !staticBuild,
 	future: {
 		unstable_viteEnvironmentApi: true,

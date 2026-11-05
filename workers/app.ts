@@ -30,7 +30,14 @@ export default {
 			target.protocol = "http:";
 			target.pathname = "/ws";
 			target.search = "";
-			return fetch(target.toString(), request);
+			try {
+				return await fetch(target.toString(), request);
+			} catch {
+				// Backend down/refused: answer with a plain 502 instead of letting
+				// workerd emit a 500 error page. Dev's miniflare crashes the whole
+				// Node process on any 500 JSON-parsing its (gzip'd) error body.
+				return new Response("WebSocket backend unavailable", { status: 502 });
+			}
 		}
 
 		// 404 for known non-route probes (Chrome DevTools, etc.)

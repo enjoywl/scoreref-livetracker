@@ -8,6 +8,7 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import SiteFooter from "./components/SiteFooter";
 import "./app.css";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -16,11 +17,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				{/* 子路径下显式指向 favicon，避免浏览器向根请求落到主站 */}
+				<link rel="icon" href={`${import.meta.env.BASE_URL}favicon.ico`} />
 				<Meta />
 				<Links />
 			</head>
 			<body>
-				{children}
+				<div className="site-main">{children}</div>
+				<SiteFooter />
 				<ScrollRestoration />
 				<Scripts />
 			</body>

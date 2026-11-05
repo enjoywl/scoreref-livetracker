@@ -15,19 +15,23 @@ interface FieldViewProps {
 
 type Side = 'home' | 'away' | 'neutral';
 
+// 挂在 /livetracker/ 子路径下，public 资源必须用 BASE_URL 前缀，
+// 否则会被边缘 Caddy 路由到主站根路径而 404。
+const BASE = import.meta.env.BASE_URL;
+
 /** Result close-up art shown above the centred tooltip. */
 const CLOSEUP_ART = {
-  shot_on: { src: '/resource/shot_in.svg', alt: '射正' },
-  shot_off: { src: '/resource/shot_out.svg', alt: '射偏' },
-  penalty: { src: '/resource/penalty.svg', alt: '点球' },
-  penalty_goal: { src: '/resource/penalty_goal.svg', alt: '点球命中' },
-  penalty_miss: { src: '/resource/penalty_miss.svg', alt: '点球射失' },
-  penalty_period: { src: '/resource/penalty_period.svg', alt: '点球大战' },
-  yellow_card: { src: '/resource/yellow_card.svg', alt: '黄牌' },
-  red_card: { src: '/resource/red_card.svg', alt: '红牌' },
-  injury: { src: '/resource/injury.svg', alt: '伤病' },
-  var: { src: '/resource/var.svg', alt: 'VAR' },
-  substitution: { src: '/resource/substition.svg', alt: '换人' },
+  shot_on: { src: `${BASE}resource/shot_in.svg`, alt: '射正' },
+  shot_off: { src: `${BASE}resource/shot_out.svg`, alt: '射偏' },
+  penalty: { src: `${BASE}resource/penalty.svg`, alt: '点球' },
+  penalty_goal: { src: `${BASE}resource/penalty_goal.svg`, alt: '点球命中' },
+  penalty_miss: { src: `${BASE}resource/penalty_miss.svg`, alt: '点球射失' },
+  penalty_period: { src: `${BASE}resource/penalty_period.svg`, alt: '点球大战' },
+  yellow_card: { src: `${BASE}resource/yellow_card.svg`, alt: '黄牌' },
+  red_card: { src: `${BASE}resource/red_card.svg`, alt: '红牌' },
+  injury: { src: `${BASE}resource/injury.svg`, alt: '伤病' },
+  var: { src: `${BASE}resource/var.svg`, alt: 'VAR' },
+  substitution: { src: `${BASE}resource/substition.svg`, alt: '换人' },
 } as const;
 type DisplayTooltip = TooltipData & { side: Side };
 
@@ -199,7 +203,7 @@ export default function FieldView({ tracker, state }: FieldViewProps) {
     <div className="field-scene">
       {/* 半场/全场/加时中场统计遮罩打开时，球场与场上动画整体虚化，突出统计卡片 */}
       <div className={'field-wrap' + (state.breakStats ? ' is-break' : '')}>
-        <img src="/resource/pitch_v4.svg" alt="pitch" className="pitch-img" draggable={false} />
+        <img src={`${BASE}resource/pitch_v4.svg`} alt="pitch" className="pitch-img" draggable={false} />
 
         {/* 广告栏拆成三层，从下到上：静态板面 SVG → HTML 跑马灯合成层 → 球员/
             皮球/特效 SVG。这样跑马灯重绘时不再拖着整块 overlay 一起光栅化。 */}
