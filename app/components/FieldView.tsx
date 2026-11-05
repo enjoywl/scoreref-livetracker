@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useLayoutEffect, useMemo, type CSSProperties } from 'react';
+import { useRef, useState, useEffect, useLayoutEffect, useMemo, type CSSProperties, type ReactNode } from 'react';
 import { LiveTracker, type MatchState, type TooltipData } from '~/engine/LiveTracker';
 import { innerToPercent } from '~/data/coords';
 import { FAN_COLORS, FAN_WAVE_COLORS, THROW_FAN_COLOR } from '~/data/fanColors';
@@ -11,6 +11,11 @@ import PitchBoards, { PitchCornerFlags } from './PitchBoards';
 interface FieldViewProps {
   tracker: LiveTracker;
   state: MatchState;
+  /** Optional banner rendered over the pitch (e.g. "no tracking data"). */
+  notice?: ReactNode;
+  /** No live feed: hide the pitch/animation layers and keep only the score
+   *  strip, with `notice` centred in the empty animation area. */
+  staticView?: boolean;
 }
 
 type Side = 'home' | 'away' | 'neutral';
@@ -41,7 +46,7 @@ function stripSidePrefix(text: string): string {
   return text.replace(/^(Home|Away)\s+/i, '');
 }
 
-export default function FieldView({ tracker, state }: FieldViewProps) {
+export default function FieldView({ tracker, state, notice, staticView }: FieldViewProps) {
   const refs = useRef<Record<string, SVGElement | null>>({});
   const tipRef = useRef<HTMLDivElement>(null);
   // Measured half-width of the anchored card as a % of the pitch stage, used to
@@ -202,7 +207,11 @@ export default function FieldView({ tracker, state }: FieldViewProps) {
   return (
     <div className="field-scene">
       {/* 半场/全场/加时中场统计遮罩打开时，球场与场上动画整体虚化，突出统计卡片 */}
-      <div className={'field-wrap' + (state.breakStats ? ' is-break' : '')}>
+      <div
+        className={
+          'field-wrap' + (state.breakStats ? ' is-break' : '') + (staticView ? ' is-static' : '')
+        }
+      >
         <img src={`${BASE}resource/pitch_v4.svg`} alt="pitch" className="pitch-img" draggable={false} />
 
         {/* 广告栏拆成三层，从下到上：静态板面 SVG → HTML 跑马灯合成层 → 球员/
@@ -210,7 +219,7 @@ export default function FieldView({ tracker, state }: FieldViewProps) {
         <svg className="overlay boards-overlay" viewBox="0 0 322 182" xmlns="http://www.w3.org/2000/svg">
           <PitchBoards />
         </svg>
-        <BoardMarqueeLayer paused={!!state.breakStats} />
+        <BoardMarqueeLayer paused={!!state.breakStats || !!staticView} />
 
         <svg className="overlay" viewBox="0 0 322 182" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -777,6 +786,14 @@ export default function FieldView({ tracker, state }: FieldViewProps) {
             state={state}
             data={state.breakStats}
           />
+        )}
+
+        {/* No live feed: keep the pitch visible but cover it with a veil and the
+            notice, so only the score strip stays readable above it. */}
+        {staticView && (
+          <div className="field-cover" role="status">
+            {notice && <div className="field-notice">{notice}</div>}
+          </div>
         )}
 
         {/* 底部比分 banner 在半场/全场统计期间保持显示（统计卡片之上） */}

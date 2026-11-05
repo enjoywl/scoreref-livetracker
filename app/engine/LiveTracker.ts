@@ -184,6 +184,24 @@ export interface EngineOptions {
   mode?: 'replay' | 'live';
 }
 
+/** Static match metadata used when the match exists but has no live feed.
+ *  A later snapshot (if one arrives) supersedes these values through the
+ *  normal event path. */
+export interface DisplayMeta {
+  team1?: string;
+  team2?: string;
+  team1Id?: string;
+  team2Id?: string;
+  team1Color?: string;
+  team2Color?: string;
+  champ?: string;
+  score?: string;
+  matchMinute?: number;
+  statusText?: string;
+  /** Show the ball at the centre spot so the field never looks empty. */
+  ballAtCenter?: boolean;
+}
+
 /** 事件坐标来源：own=消息自带；companion=同 tick 的伴侣帧；backfill=历史轨迹回填；none=无点位 */
 export type XySrc = 'own' | 'companion' | 'backfill' | 'none';
 
@@ -1530,6 +1548,40 @@ export class LiveTracker {
     this.refs = refs;
     // React 重挂载后新 DOM 元素属性已重置，强制重绘控球半场遮罩
     this._posHalfTeam = null;
+  }
+
+  /** Apply static match metadata for a match with no live feed.
+   *  Only fills display fields — no events, no clock, no playback. */
+  applyDisplayMeta(meta: DisplayMeta): void {
+    if (meta.team1) this.team1 = meta.team1;
+    if (meta.team2) this.team2 = meta.team2;
+    if (meta.team1Id) this.team1Id = meta.team1Id;
+    if (meta.team2Id) this.team2Id = meta.team2Id;
+    if (meta.team1Color) this.team1Color = meta.team1Color;
+    if (meta.team2Color) this.team2Color = meta.team2Color;
+    if (meta.champ) this.champ = meta.champ;
+
+    if (meta.score !== undefined) {
+      this.score = meta.score;
+      const [home, away] = meta.score.split('-');
+      if (home !== undefined) this._scoreHome = home.trim();
+      if (away !== undefined) this._scoreAway = away.trim();
+    }
+
+    if (typeof meta.matchMinute === 'number' && Number.isFinite(meta.matchMinute)) {
+      this.matchMinute = Math.max(0, Math.floor(meta.matchMinute));
+      this.matchSecond = 0;
+      // Keep the clock anchor consistent in case the feed starts later.
+      this._timerTmSec = this.matchMinute * 60;
+      this._timerTsSec = 0;
+    }
+
+    if (meta.statusText) this.statusText = meta.statusText;
+    if (meta.ballAtCenter && !this.ballPos) {
+      this.ballPos = { x: CENTER_FIELD.x, y: CENTER_FIELD.y };
+    }
+
+    this._notify();
   }
 
   /** 启动/替换同名一次性动画，返回 token；旧循环与 timeout 据此失效 */
