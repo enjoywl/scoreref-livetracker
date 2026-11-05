@@ -37,15 +37,8 @@ RUN npm run typecheck && npm run build:static
 
 FROM ${NGINX_IMAGE}
 
-# 反向代理目标（生产 ws-service），容器启动时由官方 entrypoint 用 envsubst
-# 渲染到 /etc/nginx/conf.d/default.conf。末尾不要带斜杠。
-# 本机调试可用 -e WS_UPSTREAM=http://host.docker.internal:7070 覆盖。
-ENV WS_UPSTREAM=http://103.171.35.90:7070
-
-# WS 握手时发给后端的 Origin。ws-service 生产环境只放行这个来源，
-# 前端通过 IP:端口访问时需要改写成它；后端白名单改成实际来源后可覆盖。
-ENV WS_ORIGIN=https://www.hypersports.com
-
+# 纯静态托管。WebSocket /v1/soccer/ws 已改由边缘 Caddy 直接反代到 ws-service，
+# 这里不再代理，也不再需要 WS_UPSTREAM / WS_ORIGIN 等变量。
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/build/client /usr/share/nginx/html
 
