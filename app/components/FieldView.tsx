@@ -209,7 +209,10 @@ export default function FieldView({ tracker, state, notice, staticView }: FieldV
       {/* 半场/全场/加时中场统计遮罩打开时，球场与场上动画整体虚化，突出统计卡片 */}
       <div
         className={
-          'field-wrap' + (state.breakStats ? ' is-break' : '') + (staticView ? ' is-static' : '')
+          'field-wrap' +
+          (state.breakStats ? ' is-break' : '') +
+          (staticView ? ' is-static' : '') +
+          (staticView && notice ? ' is-no-feed' : '')
         }
       >
         <img src={`${BASE}resource/pitch_v4.svg`} alt="pitch" className="pitch-img" draggable={false} />
@@ -366,7 +369,7 @@ export default function FieldView({ tracker, state, notice, staticView }: FieldV
               盖住经过的文字。 */}
           <PitchCornerFlags />
 
-          <g transform="matrix(0.2868546541,0,0,0.2868546541,0,0)">
+          <g className="pitch-anim" transform="matrix(0.2868546541,0,0,0.2868546541,0,0)">
             {/* Possession tints — trapezoid matching field shape */}
             <polygon ref={setRef('homeTint')} points="231.76,252.28 42.95,537.83 558.53,538.04 560.94,251.62" fill="#fff" opacity="0" />
             <polygon ref={setRef('awayTint')} points="560.94,251.62 558.53,538.04 1078.65,538.26 891.96,250.95" fill="#ffd43b" opacity="0" />
@@ -471,6 +474,7 @@ export default function FieldView({ tracker, state, notice, staticView }: FieldV
           <g
             ref={setRef('goalCam')}
             data-role="goal-cam"
+            className="goal-anim"
             opacity="0"
             style={closeupArt ? { visibility: 'hidden' } : undefined}
           >

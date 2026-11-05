@@ -138,6 +138,20 @@ export function isMatchNotStarted(match: ApiMatchInfo): boolean {
 }
 
 /**
+ * Match is being played right now. Anything else (finished, scheduled,
+ * postponed, cancelled, …) must not play field animations.
+ *
+ * The API reports the live period as `type: "inprogress"`; when the status
+ * object is missing we fall back to "not known to be over/not started" so a
+ * live feed is never silently switched to the static view.
+ */
+export function isMatchInProgress(match: ApiMatchInfo): boolean {
+  const type = (match.status?.type ?? '').toLowerCase();
+  if (type) return type === 'inprogress';
+  return !isMatchFinished(match) && !isMatchNotStarted(match);
+}
+
+/**
  * Display minute for a match that has no live feed. Mirrors the parent site's
  * `computeLiveMinute`: current period base + elapsed since the period started.
  * Returns a whole match minute; the scoreboard appends `:00` seconds.

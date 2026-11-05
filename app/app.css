@@ -160,8 +160,18 @@ body {
   -webkit-backdrop-filter: blur(1.5px);
   pointer-events: none;
 }
+/* Matches that are not in progress keep the pitch/scoreboard but never show
+   field animations (players, ball, effects, goal close-up, marquee). */
+.field-wrap.is-static .pitch-anim,
+.field-wrap.is-static .goal-anim,
+.field-wrap.is-static .board-marquee-layer,
+.field-wrap.is-static .html-tooltip,
+.field-wrap.is-static .result-cam-art,
+.field-wrap.is-static .shootout-board {
+  visibility: hidden;
+}
 /* Counters are all zero without a feed; keeping them would fake match stats. */
-.field-wrap.is-static .fs-mini-stats {
+.field-wrap.is-no-feed .fs-mini-stats {
   visibility: hidden;
 }
 

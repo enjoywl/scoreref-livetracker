@@ -8,6 +8,7 @@ import {
   matchStatusText,
   isMatchFinished,
   isMatchNotStarted,
+  isMatchInProgress,
   type ApiMatchInfo,
 } from '~/lib/matchInfo';
 import { getWsUrl } from '~/lib/ws';
@@ -256,13 +257,17 @@ export default function LiveTrackerRoute() {
   }
 
   const notice = phase === 'no-tracker' ? trackingNotice(matchInfo) : null;
+  // Finished / scheduled / postponed / cancelled matches never play field
+  // animations, even if the feed still delivers events for them.
+  const staticView =
+    phase === 'no-tracker' || (matchInfo !== null && !isMatchInProgress(matchInfo));
 
   return (
     <div className="app">
       <FieldView
         tracker={T}
         state={state}
-        staticView={phase === 'no-tracker'}
+        staticView={staticView}
         notice={
           notice && (
             <>
