@@ -483,7 +483,7 @@ export class LiveTracker {
   _timerServerDateMs: number;
   /** 最近一次事件携带的 TU（ms）；0 表示尚未收到 */
   _timerTuMs: number;
-  /** 当前生效的 TM/TS（秒），只在事件携带对应字段时更新 */
+  /** 当前生效的 TM（分钟）/TS（秒），只在事件携带对应字段时更新 */
   _timerTmSec: number;
   _timerTsSec: number;
   /** 上一次把本地流逝时间累加进 serverDate 的时间戳 */
@@ -1572,7 +1572,7 @@ export class LiveTracker {
       this.matchMinute = Math.max(0, Math.floor(meta.matchMinute));
       this.matchSecond = 0;
       // Keep the clock anchor consistent in case the feed starts later.
-      this._timerTmSec = this.matchMinute * 60;
+      this._timerTmSec = this.matchMinute;
       this._timerTsSec = 0;
     }
 

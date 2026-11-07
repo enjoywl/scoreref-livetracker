@@ -1,3 +1,5 @@
+import assert from 'node:assert/strict';
+
 // Runtime check for the server-owned match clock path in LiveTracker.
 // Usage: node_modules/.bin/vite-node scripts/clock_probe.mjs
 globalThis.requestAnimationFrame = cb => setTimeout(() => cb(performance.now()), 16);
@@ -47,5 +49,23 @@ old.addEvent({
 });
 show(old, 'legacy   26:23');
 
+// 21883505 回归：REST 的分钟不能再乘 60，否则会把正确源时钟误判为落后，
+// 回退到后端冻结的 28:35，再叠加下半场经过时间，显示成约 75 分钟。
+const restored = new LiveTracker([], () => {}, { mode: 'live' });
+restored.applyDisplayMeta({ matchMinute: 91 });
+const now = Date.now();
+const secondHalfStart = now - 47 * 60_000;
+const sourceTime = ms => new Date(ms).toISOString().slice(0, 19).replace(/\D/g, '');
+restored.addEvent({
+  TM: '45', TS: '0', TT: '1', TU: sourceTime(secondHalfStart),
+  ServerTime: sourceTime(now - 4000), DeltaMilliseconds: '4000',
+  matchTimeMs: String(28 * 60_000 + 35_000), clockRunning: 'false',
+  VC: '21024', snapshot: 'true',
+});
+show(restored, '21883505 ');
+assert.equal(restored._clockTotalMs(), 92 * 60_000);
+assert.equal(restored._sourceClockPreferred, true);
+
 t.destroy();
 old.destroy();
+restored.destroy();

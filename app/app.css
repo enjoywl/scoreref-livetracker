@@ -989,7 +989,7 @@ body {
 
 .fs-team-name {
   display: block;
-  font-size: 1.35em;
+  font-size: 1.15em;
   font-weight: 800;
   letter-spacing: 0.01em;
   color: #fff;
@@ -1046,7 +1046,7 @@ body {
   display: flex;
   align-items: baseline;
   gap: 0.35em;
-  font-size: 1.75em;
+  font-size: 1.45em;
   font-weight: 800;
   line-height: 1;
   color: #fff;
@@ -1070,10 +1070,10 @@ body {
   .field-scoreboard { padding: 0 1cqi 0.7cqi; }
   .fs-card { padding: 0.45em 0.75em; }
   .fs-main { gap: 0.6em; }
-  .fs-team-name { font-size: 1.1em; }
+  .fs-team-name { font-size: 0.95em; }
   .fs-mini-stats { gap: 0.45em; font-size: 0.65em; }
   .fs-center { min-width: 5.5em; }
-  .fs-score-value { font-size: 1.55em; gap: 0.28em; }
+  .fs-score-value { font-size: 1.3em; gap: 0.28em; }
   .fs-minute { font-size: 0.95em; }
 }
 
