@@ -25,7 +25,7 @@ const TILE =
   'url("data:image/svg+xml,' +
   encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PERIOD_M} ${BOARD_H_M}">` +
-      `<text x="0" y="${(BOARD_H_M / 2 + FONT_M * 0.35).toFixed(4)}" textLength="${WORD_W.toFixed(4)}" lengthAdjust="spacingAndGlyphs" fill="${BRAND}" fill-opacity="0.95" font-family="Arial, Helvetica Neue, sans-serif" font-size="${FONT_M.toFixed(4)}" font-weight="700">scoreref</text>` +
+      `<text x="0" y="${(BOARD_H_M / 2 + FONT_M * 0.35).toFixed(4)}" textLength="${WORD_W.toFixed(4)}" lengthAdjust="spacingAndGlyphs" fill="${BRAND}" fill-opacity="0.95" font-family="Arial, Helvetica Neue, sans-serif" font-size="${FONT_M.toFixed(4)}" font-weight="700">ScoreRef</text>` +
       `</svg>`,
   ) +
   '")';

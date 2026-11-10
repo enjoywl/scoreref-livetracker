@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { BRAND, buildPanels } from '~/data/pitchBoards';
 
-/** 静态场地广告栏：板面填充和顶沿高光。会动的 "scoreref" 跑马灯不在这里，
+/** 静态场地广告栏：板面填充和顶沿高光。会动的 "ScoreRef" 跑马灯不在这里，
  *  而是 BoardMarqueeLayer 的 HTML 合成层——SVG 里的 CSS transform 动画不进
  *  合成器，每帧都要重绘整块 overlay；拆出去后 38 块面板在软件渲染下的 GPU
  *  开销从约 23% 降到约 5%（20fps）。 */

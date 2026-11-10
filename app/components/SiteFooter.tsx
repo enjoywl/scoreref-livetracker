@@ -9,7 +9,7 @@ import { Link } from 'react-router';
 export default function SiteFooter() {
   return (
     <footer className="site-footer">
-      <span>© {new Date().getFullYear()} scoreref</span>
+      <span>© {new Date().getFullYear()} ScoreRef</span>
       {/* 调试页只在本地 dev server 注册，线上不展示入口 */}
       {import.meta.env.DEV && (
         <nav className="site-footer-nav" aria-label="Site">

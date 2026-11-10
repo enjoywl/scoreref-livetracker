@@ -7,7 +7,7 @@ import { depthW, VERTICAL_K, xyView } from '~/data/coords';
  * the boards sit on the apron instead of inside the field.
  *
  * The whole U is one continuous centreline. Every panel is a projective quad
- * textured with a "scoreref" marquee whose phase comes from the cumulative
+ * textured with a "ScoreRef" marquee whose phase comes from the cumulative
  * distance along the U, so the ticker runs around the rounded corners without
  * restarting at panel seams.
  *
@@ -29,13 +29,13 @@ const FAR_PANELS = 10;
 const CORNER_PANELS = 8;
 
 // One marquee tile: word + gap. The word width matches Arial Bold's natural
-// "scoreref" advance (3.947 em) at the font size used below, so nothing is
+// "ScoreRef" advance (4.391 em) at the font size used below, so nothing is
 // squeezed by textLength.
 export const PERIOD_M = 11.4;
 const WORD_SHARE = 0.72;
 export const SPEED_MPS = 2.0;
 export const WORD_W = PERIOD_M * WORD_SHARE;
-export const FONT_M = WORD_W / 3.947;
+export const FONT_M = WORD_W / 4.3906;
 
 export const FILLS = ['#08131f', '#0b1b2a'];
 export const BRAND = '#d9ff57';
