@@ -38,6 +38,14 @@ const CLOSEUP_ART = {
   var: { src: `${BASE}resource/var.svg`, alt: 'VAR' },
   substitution: { src: `${BASE}resource/substition.svg`, alt: '换人' },
 } as const;
+
+/** VAR 的 "VAR" 和点球大战的 "VS" 是文字图形，水平镜像后会反向；
+ *  这两者本身也不表达左右方向，保持正向显示。 */
+const UPRIGHT_ART: ReadonlySet<NonNullable<MatchState['closeupArt']>> = new Set([
+  'var',
+  'penalty_period',
+]);
+
 type DisplayTooltip = TooltipData & { side: Side };
 
 /** Event labels sometimes carry a "Home "/"Away " prefix; the team row already
@@ -703,7 +711,8 @@ export default function FieldView({ tracker, state, notice, staticView }: FieldV
         {/* Result close-up art sits on its own at the top centre of the pitch,
             while its tooltip docks at the bottom centre (`has-art`, see
             app.css), so the two never overlap on small screens. Away-side art
-            is mirrored so it still reads as coming from the correct side. */}
+            is mirrored so it still reads as coming from the correct side, except
+            the text-bearing VAR / shootout art (see UPRIGHT_ART). */}
         {closeupArt && (
           <div
             key={closeupArt + ':' + (state.currentVC?.t ?? '')}
@@ -713,7 +722,10 @@ export default function FieldView({ tracker, state, notice, staticView }: FieldV
             <img
               src={CLOSEUP_ART[closeupArt].src}
               alt={CLOSEUP_ART[closeupArt].alt}
-              className={'result-cam-illustration' + (tooltip?.side === 'away' ? ' is-away' : '')}
+              className={
+                'result-cam-illustration' +
+                (tooltip?.side === 'away' && !UPRIGHT_ART.has(closeupArt) ? ' is-away' : '')
+              }
               draggable={false}
             />
           </div>
